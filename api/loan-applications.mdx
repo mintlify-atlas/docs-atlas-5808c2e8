@@ -1,0 +1,731 @@
+---
+title: "Loan Applications API"
+description: "Manage loan application workflow from creation to disbursement"
+---
+
+The Loan Applications API manages the complete loan origination workflow, from initial application creation through approval and disbursement. Applications go through various statuses: IN_PROGRESS → PENDING → APPROVED → DISBURSED.
+
+## Create Loan Application
+
+<Expandable title="POST /api/loan-applications">
+  Create a new loan application.
+
+  **Request Body**
+
+  <ParamField body="profileId" type="long" required>
+    Borrower profile identifier
+  </ParamField>
+
+  <ParamField body="loanProductId" type="long" required>
+    Loan product identifier
+  </ParamField>
+
+  <ParamField body="amounts" type="array" required>
+    Loan amounts (for group loans, specify per member)
+    
+    <Expandable title="Amount Object">
+      <ParamField body="amount" type="decimal" required>
+        Loan amount
+      </ParamField>
+
+      <ParamField body="memberId" type="long">
+        Group member ID (for group loans only)
+      </ParamField>
+    </Expandable>
+  </ParamField>
+
+  <ParamField body="disbursementDate" type="date" required>
+    Planned disbursement date (YYYY-MM-DD)
+  </ParamField>
+
+  <ParamField body="preferredRepaymentDate" type="date">
+    Preferred first repayment date
+  </ParamField>
+
+  <ParamField body="maturity" type="integer" required>
+    Loan term (number of installments or days)
+  </ParamField>
+
+  <ParamField body="gracePeriod" type="integer">
+    Grace period (default: 0)
+  </ParamField>
+
+  <ParamField body="interestRate" type="decimal" required>
+    Annual interest rate
+  </ParamField>
+
+  <ParamField body="scheduleType" type="string" required>
+    Schedule generation type (ANNUITY, FLAT, DECLINING_BALANCE, etc.)
+  </ParamField>
+
+  <ParamField body="scheduleBasedType" type="string">
+    DAILY_INSTALLMENT or MONTHLY_INSTALLMENT
+  </ParamField>
+
+  <ParamField body="currencyId" type="long" required>
+    Currency identifier
+  </ParamField>
+
+  <ParamField body="userId" type="long" required>
+    Loan officer user ID
+  </ParamField>
+
+  <ParamField body="payees" type="array">
+    Disbursement payees (if product supports multiple payees)
+    
+    <Expandable title="Payee Object">
+      <ParamField body="name" type="string" required>
+        Payee name
+      </ParamField>
+
+      <ParamField body="amount" type="decimal" required>
+        Amount to disburse to this payee
+      </ParamField>
+
+      <ParamField body="description" type="string">
+        Purpose description
+      </ParamField>
+    </Expandable>
+  </ParamField>
+
+  <ParamField body="entryFees" type="array">
+    Entry fees to apply
+    
+    <Expandable title="Entry Fee Object">
+      <ParamField body="feeId" type="long" required>
+        Fee identifier
+      </ParamField>
+
+      <ParamField body="amount" type="decimal">
+        Fee amount (if not using percentage)
+      </ParamField>
+
+      <ParamField body="percentage" type="decimal">
+        Fee percentage (if not using fixed amount)
+      </ParamField>
+    </Expandable>
+  </ParamField>
+
+  <ParamField body="penaltyIds" type="array">
+    Array of penalty IDs to apply
+  </ParamField>
+
+  <ParamField body="fieldValues" type="array">
+    Custom field values
+  </ParamField>
+
+  <ParamField body="creditLineId" type="long">
+    Credit line to use (if applicable)
+  </ParamField>
+
+  **Response**: Complete loan application object with generated code, schedule, and status.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loan-applications" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "profileId": 123,
+      "loanProductId": 1,
+      "amounts": [{"amount": 10000}],
+      "disbursementDate": "2024-04-01",
+      "maturity": 12,
+      "gracePeriod": 0,
+      "interestRate": 12.5,
+      "scheduleType": "ANNUITY",
+      "currencyId": 1,
+      "userId": 5
+    }'
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-applications', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      profileId: 123,
+      loanProductId: 1,
+      amounts: [{amount: 10000}],
+      disbursementDate: '2024-04-01',
+      maturity: 12,
+      gracePeriod: 0,
+      interestRate: 12.5,
+      scheduleType: 'ANNUITY',
+      currencyId: 1,
+      userId: 5
+    })
+  });
+  const application = await response.json();
+  ```
+
+  ```python Python
+  import requests
+
+  response = requests.post(
+    'https://api.opencbs.com/api/loan-applications',
+    headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'},
+    json={
+      'profileId': 123,
+      'loanProductId': 1,
+      'amounts': [{'amount': 10000}],
+      'disbursementDate': '2024-04-01',
+      'maturity': 12,
+      'gracePeriod': 0,
+      'interestRate': 12.5,
+      'scheduleType': 'ANNUITY',
+      'currencyId': 1,
+      'userId': 5
+    }
+  )
+  application = response.json()
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get All Loan Applications
+
+<Expandable title="GET /api/loan-applications">
+  Retrieve all loan applications with pagination.
+
+  <ParamField query="search" type="string">
+    Search term to filter applications
+  </ParamField>
+
+  <ParamField query="page" type="integer">
+    Page number (0-indexed)
+  </ParamField>
+
+  <ParamField query="size" type="integer">
+    Results per page
+  </ParamField>
+
+  **Response**: Paginated list of loan applications.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-applications?page=0&size=20" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-applications?page=0&size=20', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const applications = await response.json();
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Sorted Applications
+
+<Expandable title="GET /api/loan-applications/sorted">
+  Retrieve loan applications with custom sorting.
+
+  <ParamField query="search" type="string">
+    Search term
+  </ParamField>
+
+  <ParamField query="sortType" type="string" required>
+    Sort field (e.g., CREATED_DATE, AMOUNT, STATUS)
+  </ParamField>
+
+  <ParamField query="isAsc" type="boolean" required>
+    Sort ascending (true) or descending (false)
+  </ParamField>
+
+  <ParamField query="page" type="integer">
+    Page number
+  </ParamField>
+
+  <ParamField query="size" type="integer">
+    Results per page
+  </ParamField>
+
+  **Response**: Paginated and sorted list of loan applications.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-applications/sorted?sortType=CREATED_DATE&isAsc=false" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Application by ID
+
+<Expandable title="GET /api/loan-applications/{id}">
+  Retrieve detailed information about a specific loan application.
+
+  <ParamField path="id" type="long" required>
+    Loan application identifier
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="id" type="long">
+    Application identifier
+  </ResponseField>
+
+  <ResponseField name="code" type="string">
+    Application code
+  </ResponseField>
+
+  <ResponseField name="status" type="string">
+    Current status (IN_PROGRESS, PENDING, APPROVED, REJECTED, DISBURSED)
+  </ResponseField>
+
+  <ResponseField name="profile" type="object">
+    Borrower profile details
+  </ResponseField>
+
+  <ResponseField name="loanProduct" type="object">
+    Loan product configuration
+  </ResponseField>
+
+  <ResponseField name="loanOfficer" type="object">
+    Assigned loan officer
+  </ResponseField>
+
+  <ResponseField name="amounts" type="array">
+    Loan amounts by member
+  </ResponseField>
+
+  <ResponseField name="interestRate" type="decimal">
+    Interest rate
+  </ResponseField>
+
+  <ResponseField name="maturity" type="integer">
+    Loan term
+  </ResponseField>
+
+  <ResponseField name="gracePeriod" type="integer">
+    Grace period
+  </ResponseField>
+
+  <ResponseField name="disbursementDate" type="string">
+    Planned disbursement date
+  </ResponseField>
+
+  <ResponseField name="installments" type="object">
+    Repayment schedule
+  </ResponseField>
+
+  <ResponseField name="payees" type="array">
+    Disbursement payees
+  </ResponseField>
+
+  <ResponseField name="entryFees" type="array">
+    Applied entry fees
+  </ResponseField>
+
+  <ResponseField name="guarantors" type="array">
+    Loan guarantors
+  </ResponseField>
+
+  <ResponseField name="attachments" type="array">
+    Application documents
+  </ResponseField>
+
+  <ResponseField name="creditCommitteeVotes" type="array">
+    Credit committee voting records
+  </ResponseField>
+
+  <ResponseField name="loan" type="object">
+    Associated loan (if disbursed)
+  </ResponseField>
+
+  <ResponseField name="scheduleManualEdited" type="boolean">
+    Whether schedule was manually modified
+  </ResponseField>
+
+  <ResponseField name="isReadOnly" type="boolean">
+    Whether application can be edited
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-applications/456" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-applications/456', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const application = await response.json();
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Applications by Profile
+
+<Expandable title="GET /api/loan-applications/by-profile/{profileId}">
+  Retrieve all loan applications for a specific borrower.
+
+  <ParamField path="profileId" type="long" required>
+    Profile identifier
+  </ParamField>
+
+  <ParamField query="page" type="integer">
+    Page number
+  </ParamField>
+
+  <ParamField query="size" type="integer">
+    Results per page
+  </ParamField>
+
+  **Response**: Paginated list of applications for the profile.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-applications/by-profile/123" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Update Loan Application
+
+<Expandable title="PUT /api/loan-applications/{id}">
+  Update an existing loan application. Only possible when status is IN_PROGRESS.
+
+  <ParamField path="id" type="long" required>
+    Application identifier
+  </ParamField>
+
+  **Request Body**: Same structure as Create Loan Application
+
+  **Response**: Updated loan application object
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X PUT "https://api.opencbs.com/api/loan-applications/456" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "profileId": 123,
+      "loanProductId": 1,
+      "amounts": [{"amount": 15000}],
+      "interestRate": 13.0,
+      ...
+    }'
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Preview Schedule
+
+<Expandable title="POST /api/loan-applications/preview">
+  Generate a repayment schedule preview without creating an application.
+
+  **Request Body**: Same structure as Create Loan Application
+
+  **Response**: Complete repayment schedule with all installments.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loan-applications/preview" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "loanProductId": 1,
+      "amounts": [{"amount": 10000}],
+      "disbursementDate": "2024-04-01",
+      "maturity": 12,
+      "interestRate": 12.5,
+      "scheduleType": "ANNUITY"
+    }'
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-applications/preview', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      loanProductId: 1,
+      amounts: [{amount: 10000}],
+      disbursementDate: '2024-04-01',
+      maturity: 12,
+      interestRate: 12.5,
+      scheduleType: 'ANNUITY'
+    })
+  });
+  const schedule = await response.json();
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Preview Schedule for Existing Application
+
+<Expandable title="POST /api/loan-applications/{id}/preview">
+  Preview updated schedule for an existing application with modified parameters.
+
+  <ParamField path="id" type="long" required>
+    Application identifier
+  </ParamField>
+
+  **Request Body**: Application data with modified values
+
+  **Response**: Updated schedule preview
+</Expandable>
+
+## Update Schedule
+
+<Expandable title="PUT /api/loan-applications/{id}/schedule-update">
+  Manually update the repayment schedule for an application.
+
+  <ParamField path="id" type="long" required>
+    Application identifier
+  </ParamField>
+
+  **Request Body**: Schedule object with modified installments
+
+  **Response**: Updated schedule
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X PUT "https://api.opencbs.com/api/loan-applications/456/schedule-update" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "columns": [...],
+      "rows": [
+        {"maturityDate": "2024-05-01", "principal": 850, "interest": 105},
+        ...
+      ]
+    }'
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Validate Schedule Update
+
+<Expandable title="PUT /api/loan-applications/{id}/schedule-update-validate">
+  Validate a schedule update without saving it.
+
+  <ParamField path="id" type="long" required>
+    Application identifier
+  </ParamField>
+
+  **Request Body**: Schedule object to validate
+
+  **Response**: Validated schedule or error messages
+</Expandable>
+
+## Submit Application
+
+<Expandable title="POST /api/loan-applications/{id}/submit">
+  Submit an application for review. Changes status from IN_PROGRESS to PENDING.
+
+  <ParamField path="id" type="long" required>
+    Application identifier
+  </ParamField>
+
+  **Response**: Updated application with PENDING status
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loan-applications/456/submit" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  await fetch('https://api.opencbs.com/api/loan-applications/456/submit', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Change Application Status
+
+<Expandable title="POST /api/loan-applications/{id}/change-status">
+  Change the status of a loan application (approve, reject, etc.).
+
+  <ParamField path="id" type="long" required>
+    Application identifier
+  </ParamField>
+
+  **Request Body**
+
+  <ParamField body="status" type="string" required>
+    New status (APPROVED, REJECTED)
+  </ParamField>
+
+  <ParamField body="notes" type="string">
+    Notes or reason for status change
+  </ParamField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loan-applications/456/change-status" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "status": "APPROVED",
+      "notes": "All criteria met"
+    }'
+  ```
+
+  ```javascript JavaScript
+  await fetch('https://api.opencbs.com/api/loan-applications/456/change-status', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      status: 'APPROVED',
+      notes: 'All criteria met'
+    })
+  });
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Disburse Loan
+
+<Expandable title="POST /api/loan-applications/{id}/disburse">
+  Create a disbursement request for an approved application. Creates a maker-checker request.
+
+  <ParamField path="id" type="long" required>
+    Application identifier (must have APPROVED status)
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="id" type="long">
+    Maker-checker request ID (requires approval before disbursement)
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loan-applications/456/disburse" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-applications/456/disburse', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const request = await response.json();
+  console.log('Disbursement request created:', request.id);
+  ```
+
+  ```python Python
+  import requests
+
+  response = requests.post(
+    'https://api.opencbs.com/api/loan-applications/456/disburse',
+    headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+  )
+  request = response.json()
+  print(f"Disbursement request created: {request['id']}")
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Calculate Entry Fees
+
+<Expandable title="POST /api/loan-applications/calculate-entry-fee">
+  Calculate entry fees for a loan application.
+
+  **Request Body**
+
+  <ParamField body="loanProductId" type="long" required>
+    Loan product identifier
+  </ParamField>
+
+  <ParamField body="amount" type="decimal" required>
+    Loan amount
+  </ParamField>
+
+  <ParamField body="feeIds" type="array">
+    Specific fee IDs to calculate (if not provided, calculates all product fees)
+  </ParamField>
+
+  **Response**: Array of calculated fees
+
+  <ResponseField name="feeId" type="long">
+    Fee identifier
+  </ResponseField>
+
+  <ResponseField name="name" type="string">
+    Fee name
+  </ResponseField>
+
+  <ResponseField name="amount" type="decimal">
+    Calculated fee amount
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loan-applications/calculate-entry-fee" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "loanProductId": 1,
+      "amount": 10000
+    }'
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Application History
+
+<Expandable title="GET /api/loan-applications/{id}/history">
+  Retrieve all historical revisions of a loan application.
+
+  <ParamField path="id" type="long" required>
+    Application identifier
+  </ParamField>
+
+  **Response**: Array of history objects showing all changes.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-applications/456/history" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Application at Specific Date
+
+<Expandable title="GET /api/loan-applications/{id}/history/last_change">
+  Retrieve application data as it was at a specific date/time.
+
+  <ParamField path="id" type="long" required>
+    Application identifier
+  </ParamField>
+
+  <ParamField query="dateTime" type="datetime" required>
+    Date and time in ISO format
+  </ParamField>
+
+  **Response**: Application configuration at the specified date/time.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-applications/456/history/last_change?dateTime=2024-03-15T10:30:00" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>

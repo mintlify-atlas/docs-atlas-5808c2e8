@@ -1,0 +1,506 @@
+---
+title: 'Accounts'
+description: 'Manage chart of accounts and account operations'
+---
+
+## Overview
+
+The Accounts API provides endpoints for managing the chart of accounts, including account lookup, retrieval, creation, and balance operations.
+
+## Get Account Lookup
+
+<CodeGroup>
+```http GET /api/accounting/lookup
+GET /api/accounting/lookup?search={search}&page={page}&size={size}
+```
+</CodeGroup>
+
+Search and retrieve accounts based on various criteria.
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Search term to filter accounts
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (0-based)
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of account objects
+  <ResponseField name="id" type="long">
+    Account ID
+  </ResponseField>
+  <ResponseField name="number" type="string">
+    Account number
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Account name
+  </ResponseField>
+  <ResponseField name="balance" type="decimal">
+    Current account balance
+  </ResponseField>
+</ResponseField>
+
+## Get Payee Accounts
+
+<CodeGroup>
+```http GET /api/accounting/payee
+GET /api/accounting/payee?page={page}&size={size}
+```
+</CodeGroup>
+
+Retrieve all payee accounts.
+
+### Query Parameters
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+## Get Current Accounts
+
+<CodeGroup>
+```http GET /api/accounting/lookup/current-accounts
+GET /api/accounting/lookup/current-accounts?search={search}&page={page}&size={size}
+```
+</CodeGroup>
+
+Search and retrieve current accounts.
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Search term to filter current accounts
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+## Get Accounts by Tags
+
+<CodeGroup>
+```http POST /api/accounting/lookup/by-tags
+POST /api/accounting/lookup/by-tags
+Content-Type: application/json
+```
+
+```json Request Body
+[
+  "ASSET",
+  "LIABILITY"
+]
+```
+</CodeGroup>
+
+Retrieve accounts filtered by specific tags.
+
+### Request Body
+
+<ParamField body="tags" type="array" required>
+  Array of account tag types to filter by
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+## Get Account Tags
+
+<CodeGroup>
+```http GET /api/accounting/tags
+GET /api/accounting/tags
+```
+</CodeGroup>
+
+Retrieve all available account tag types.
+
+### Response
+
+<ResponseField name="tags" type="array">
+  Array of account tag type strings
+</ResponseField>
+
+## Get Root Accounts
+
+<CodeGroup>
+```http GET /api/accounting/chart-of-accounts/root
+GET /api/accounting/chart-of-accounts/root
+```
+</CodeGroup>
+
+Retrieve all root-level accounts in the chart of accounts hierarchy.
+
+### Response
+
+<ResponseField name="accounts" type="array">
+  Array of root account objects with full details
+</ResponseField>
+
+## Get Account Leaves by Parent
+
+<CodeGroup>
+```http GET /api/accounting/chart-of-accounts/root/{accountId}/leaves
+GET /api/accounting/chart-of-accounts/root/{accountId}/leaves?page={page}&size={size}
+```
+</CodeGroup>
+
+Retrieve all leaf accounts under a specific parent account.
+
+### Path Parameters
+
+<ParamField path="accountId" type="long" required>
+  ID of the parent account
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+## Get Account Details
+
+<CodeGroup>
+```http GET /api/accounting/chart-of-accounts/{accountId}
+GET /api/accounting/chart-of-accounts/{accountId}
+```
+</CodeGroup>
+
+Retrieve detailed information for a specific account.
+
+### Path Parameters
+
+<ParamField path="accountId" type="long" required>
+  ID of the account to retrieve
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Account ID
+</ResponseField>
+
+<ResponseField name="number" type="string">
+  Account number
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Account name
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Account type (ASSET, LIABILITY, EQUITY, INCOME, EXPENSE)
+</ResponseField>
+
+<ResponseField name="parentId" type="long">
+  Parent account ID
+</ResponseField>
+
+<ResponseField name="branchId" type="long">
+  Branch ID
+</ResponseField>
+
+<ResponseField name="currencyId" type="long">
+  Currency ID
+</ResponseField>
+
+<ResponseField name="balance" type="decimal">
+  Current account balance
+</ResponseField>
+
+## Filter Root Accounts by Branch
+
+<CodeGroup>
+```http GET /api/accounting/chart-of-accounts/root/branch
+GET /api/accounting/chart-of-accounts/root/branch?branch={branchId}
+```
+</CodeGroup>
+
+Filter root accounts by a specific branch.
+
+### Query Parameters
+
+<ParamField query="branch" type="long" required>
+  Branch ID to filter by
+</ParamField>
+
+## Filter Leaves by Branch
+
+<CodeGroup>
+```http GET /api/accounting/chart-of-accounts/root/{accountId}/leaves/branch
+GET /api/accounting/chart-of-accounts/root/{accountId}/leaves/branch?branch={branchId}&page={page}&size={size}
+```
+</CodeGroup>
+
+Filter leaf accounts by parent and branch.
+
+### Path Parameters
+
+<ParamField path="accountId" type="long" required>
+  ID of the parent account
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="branch" type="long" required>
+  Branch ID to filter by
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+## Create Account
+
+<CodeGroup>
+```http POST /api/accounting/chart-of-accounts
+POST /api/accounting/chart-of-accounts
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "name": "Cash Account",
+  "number": "1000",
+  "parentId": 1,
+  "typeId": 1,
+  "branchId": 1,
+  "currencyId": 1,
+  "isDebit": true
+}
+```
+</CodeGroup>
+
+Create a new account in the chart of accounts. This operation requires maker-checker approval.
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Account name
+</ParamField>
+
+<ParamField body="number" type="string" required>
+  Account number
+</ParamField>
+
+<ParamField body="parentId" type="long">
+  Parent account ID (for sub-accounts)
+</ParamField>
+
+<ParamField body="typeId" type="long" required>
+  Account type ID
+</ParamField>
+
+<ParamField body="branchId" type="long" required>
+  Branch ID
+</ParamField>
+
+<ParamField body="currencyId" type="long" required>
+  Currency ID
+</ParamField>
+
+<ParamField body="isDebit" type="boolean" required>
+  Whether the account is a debit account
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Request ID for maker-checker approval
+</ResponseField>
+
+### Permissions
+
+Requires `MAKER_FOR_ACCOUNT` permission in the `MAKER_CHECKER` module.
+
+## Update Account
+
+<CodeGroup>
+```http PUT /api/accounting/chart-of-accounts/{accountId}
+PUT /api/accounting/chart-of-accounts/{accountId}
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "name": "Updated Account Name",
+  "number": "1000",
+  "parentId": 1,
+  "typeId": 1,
+  "branchId": 1,
+  "currencyId": 1,
+  "isDebit": true
+}
+```
+</CodeGroup>
+
+Update an existing account. This operation requires maker-checker approval.
+
+### Path Parameters
+
+<ParamField path="accountId" type="long" required>
+  ID of the account to update
+</ParamField>
+
+### Request Body
+
+Same as Create Account request body.
+
+### Response
+
+<ResponseField name="id" type="long">
+  Request ID for maker-checker approval
+</ResponseField>
+
+### Permissions
+
+Requires `MAKER_FOR_ACCOUNT` permission in the `MAKER_CHECKER` module.
+
+## Recalculate Balances
+
+<CodeGroup>
+```http POST /api/accounting/recalculateBalances
+POST /api/accounting/recalculateBalances?fromDate={date}
+```
+</CodeGroup>
+
+Recalculate account balances from a specific date.
+
+### Query Parameters
+
+<ParamField query="fromDate" type="date" required>
+  Start date for balance recalculation (ISO date format: YYYY-MM-DD)
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message: "Balance recalculation is finished"
+</ResponseField>
+
+## Get Account Balance
+
+<CodeGroup>
+```http GET /api/accounting/get-account-balance/{accountId}
+GET /api/accounting/get-account-balance/{accountId}
+```
+</CodeGroup>
+
+Retrieve the current balance for a specific account.
+
+### Path Parameters
+
+<ParamField path="accountId" type="long" required>
+  ID of the account
+</ParamField>
+
+### Response
+
+<ResponseField name="balance" type="decimal">
+  Current account balance
+</ResponseField>
+
+## Get Account History
+
+<CodeGroup>
+```http GET /api/accounting/{id}/history
+GET /api/accounting/{id}/history
+```
+</CodeGroup>
+
+Retrieve the complete audit history for an account.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Account ID
+</ParamField>
+
+### Response
+
+<ResponseField name="history" type="array">
+  Array of audit history entries
+  <ResponseField name="revisionId" type="long">
+    Revision identifier
+  </ResponseField>
+  <ResponseField name="timestamp" type="datetime">
+    When the change occurred
+  </ResponseField>
+  <ResponseField name="author" type="string">
+    User who made the change
+  </ResponseField>
+  <ResponseField name="changes" type="object">
+    Details of what changed
+  </ResponseField>
+</ResponseField>
+
+## Get Last Account Change
+
+<CodeGroup>
+```http GET /api/accounting/{id}/history/last_change
+GET /api/accounting/{id}/history/last_change?dateTime={datetime}
+```
+</CodeGroup>
+
+Retrieve the most recent change to an account before a specific date/time.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Account ID
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="dateTime" type="datetime" required>
+  Date and time to look back from (ISO 8601 format: YYYY-MM-DDTHH:mm:ss)
+</ParamField>
+
+### Response
+
+<ResponseField name="revisionId" type="long">
+  Revision identifier
+</ResponseField>
+
+<ResponseField name="timestamp" type="datetime">
+  When the change occurred
+</ResponseField>
+
+<ResponseField name="author" type="string">
+  User who made the change
+</ResponseField>
+
+<ResponseField name="changes" type="object">
+  Details of what changed
+</ResponseField>

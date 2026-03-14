@@ -1,0 +1,469 @@
+---
+title: 'Reports & Documents API'
+description: 'Generate Excel reports, Jasper reports, and export financial data'
+---
+
+## Overview
+
+The Reports API provides endpoints for generating various reports and documents in OpenCBS. It supports Excel-based templates, Jasper reports, and JSON data exports for financial analysis and compliance reporting.
+
+## Get Reports by Point
+
+Retrieve available report templates for a specific point in the system (e.g., "loans", "savings", "accounting").
+
+```http
+GET /api/reports
+```
+
+### Query Parameters
+
+<ParamField query="point" type="string" required>
+  The system point/module for which to retrieve reports (e.g., "loans", "clients", "savings", "accounting")
+</ParamField>
+
+### Response
+
+Returns an array of available report templates for the specified point.
+
+<ResponseField name="[].id" type="string">
+  Unique identifier for the report template
+</ResponseField>
+
+<ResponseField name="[].name" type="string">
+  Display name of the report
+</ResponseField>
+
+<ResponseField name="[].description" type="string">
+  Report description
+</ResponseField>
+
+<ResponseField name="[].group" type="string">
+  Report group/category
+</ResponseField>
+
+<ResponseField name="[].point" type="string">
+  System point this report belongs to
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/reports?point=loans" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-instance.opencbs.cloud/api/reports?point=loans', {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const reports = await response.json();
+```
+</CodeGroup>
+
+## Search Reports
+
+Search for report templates by name or description.
+
+```http
+GET /api/reports/by-search
+```
+
+### Query Parameters
+
+<ParamField query="point" type="string" required>
+  System point to search within
+</ParamField>
+
+<ParamField query="search" type="string" required>
+  Search term (matches against report name and description)
+</ParamField>
+
+### Response
+
+Returns an array of matching report templates.
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/reports/by-search?point=loans&search=portfolio" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  point: 'loans',
+  search: 'portfolio'
+});
+
+const response = await fetch(`https://your-instance.opencbs.cloud/api/reports/by-search?${params}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const results = await response.json();
+```
+</CodeGroup>
+
+## Get Reports by Group
+
+Retrieve report templates filtered by group/category.
+
+```http
+GET /api/reports/by-group
+```
+
+### Query Parameters
+
+<ParamField query="point" type="string" required>
+  System point
+</ParamField>
+
+<ParamField query="group" type="string" required>
+  Report group/category name
+</ParamField>
+
+### Response
+
+Returns an array of report templates in the specified group.
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/reports/by-group?point=loans&group=portfolio_quality" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  point: 'loans',
+  group: 'portfolio_quality'
+});
+
+const response = await fetch(`https://your-instance.opencbs.cloud/api/reports/by-group?${params}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const groupReports = await response.json();
+```
+</CodeGroup>
+
+## Generate Excel Report
+
+Generate and download a report in Excel format.
+
+```http
+POST /api/reports/excel
+```
+
+### Request Body
+
+<ParamField body="templateId" type="string" required>
+  ID of the report template to use
+</ParamField>
+
+<ParamField body="parameters" type="object">
+  Report-specific parameters (varies by template):
+  - `startDate` - Start date for date range reports
+  - `endDate` - End date for date range reports
+  - `branchId` - Filter by branch
+  - `currencyId` - Filter by currency
+  - Other template-specific parameters
+</ParamField>
+
+<ParamField body="format" type="string">
+  Output format ("xlsx" or "xls"), defaults to "xlsx"
+</ParamField>
+
+### Response
+
+Returns the Excel file as a binary download.
+
+<ResponseField name="Content-Type" type="header">
+  `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` for XLSX
+</ResponseField>
+
+<ResponseField name="Content-Disposition" type="header">
+  Attachment with filename
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-instance.opencbs.cloud/api/reports/excel \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "templateId": "loan_portfolio_summary",
+    "parameters": {
+      "startDate": "2024-01-01",
+      "endDate": "2024-12-31",
+      "branchId": 5
+    },
+    "format": "xlsx"
+  }' \
+  --output report.xlsx
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-instance.opencbs.cloud/api/reports/excel', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    templateId: 'loan_portfolio_summary',
+    parameters: {
+      startDate: '2024-01-01',
+      endDate: '2024-12-31',
+      branchId: 5
+    },
+    format: 'xlsx'
+  })
+});
+
+const blob = await response.blob();
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'report.xlsx';
+a.click();
+```
+</CodeGroup>
+
+## Generate JSON Report
+
+Generate a report and return the data in JSON format (useful for custom processing or dashboards).
+
+```http
+POST /api/reports/json
+```
+
+### Request Body
+
+Same parameters as Excel report generation.
+
+<ParamField body="templateId" type="string" required>
+  ID of the report template
+</ParamField>
+
+<ParamField body="parameters" type="object">
+  Report parameters
+</ParamField>
+
+### Response
+
+Returns the report data in JSON format.
+
+<ResponseField name="data" type="array">
+  Array of data rows from the report
+</ResponseField>
+
+<ResponseField name="columns" type="array">
+  Column definitions
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Report metadata (title, generation date, parameters used, etc.)
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-instance.opencbs.cloud/api/reports/json \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "templateId": "loan_portfolio_summary",
+    "parameters": {
+      "startDate": "2024-01-01",
+      "endDate": "2024-12-31",
+      "branchId": 5
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-instance.opencbs.cloud/api/reports/json', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    templateId: 'loan_portfolio_summary',
+    parameters: {
+      startDate: '2024-01-01',
+      endDate: '2024-12-31',
+      branchId: 5
+    }
+  })
+});
+
+const reportData = await response.json();
+console.log(reportData);
+```
+</CodeGroup>
+
+## Generate Jasper Report
+
+Generate a report using a Jasper Reports template.
+
+```http
+POST /api/reports/{reportName}
+```
+
+### Path Parameters
+
+<ParamField path="reportName" type="string" required>
+  Name of the Jasper report template
+</ParamField>
+
+### Request Body
+
+<ParamField body="parameters" type="object" required>
+  Report parameters specific to the Jasper template
+</ParamField>
+
+<ParamField body="format" type="string">
+  Output format: "pdf", "xlsx", "docx", "html" (defaults to "pdf")
+</ParamField>
+
+### Response
+
+Returns the generated report file in the requested format.
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-instance.opencbs.cloud/api/reports/balance_sheet \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parameters": {
+      "reportDate": "2024-12-31",
+      "branchId": 5
+    },
+    "format": "pdf"
+  }' \
+  --output balance_sheet.pdf
+```
+
+```javascript JavaScript
+const reportName = 'balance_sheet';
+const response = await fetch(`https://your-instance.opencbs.cloud/api/reports/${reportName}`, {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    parameters: {
+      reportDate: '2024-12-31',
+      branchId: 5
+    },
+    format: 'pdf'
+  })
+});
+
+const blob = await response.blob();
+// Download the PDF
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'balance_sheet.pdf';
+a.click();
+```
+</CodeGroup>
+
+## Common Report Parameters
+
+Most reports accept these common parameters:
+
+<ParamField body="startDate" type="string">
+  Start date for date range (ISO 8601 format: "YYYY-MM-DD")
+</ParamField>
+
+<ParamField body="endDate" type="string">
+  End date for date range (ISO 8601 format: "YYYY-MM-DD")
+</ParamField>
+
+<ParamField body="branchId" type="number">
+  Filter results by branch ID
+</ParamField>
+
+<ParamField body="currencyId" type="number">
+  Filter by currency ID
+</ParamField>
+
+<ParamField body="userId" type="number">
+  Filter by loan officer/user ID
+</ParamField>
+
+<ParamField body="productId" type="number">
+  Filter by product ID (loan product, savings product, etc.)
+</ParamField>
+
+## Common Report Types
+
+### Loan Reports
+- Loan Portfolio Summary
+- Aging Analysis
+- Arrears Report
+- Disbursement Report
+- Repayment Schedule
+- Provisioning Report
+
+### Client Reports
+- Client List
+- New Clients Report
+- Client Demographics
+
+### Accounting Reports
+- Trial Balance
+- Balance Sheet
+- Income Statement
+- General Ledger
+- Cash Flow Statement
+
+### Savings Reports
+- Savings Portfolio
+- Interest Calculation Report
+- Dormant Accounts
+
+## Error Responses
+
+<ResponseField name="404" type="error">
+  Report template not found
+</ResponseField>
+
+<ResponseField name="400" type="error">
+  Invalid parameters - Missing required parameters or invalid values
+</ResponseField>
+
+<ResponseField name="500" type="error">
+  Report generation failed - Check template configuration and parameters
+</ResponseField>
+
+## Best Practices
+
+<Tip>
+  For large data sets, use JSON format first to check the data size before generating Excel/PDF reports, which can be resource-intensive.
+</Tip>
+
+<Warning>
+  Reports with large date ranges or no filters may take significant time to generate and consume system resources. Always use appropriate filters.
+</Warning>
+
+<Note>
+  Some reports may be cached for performance. If you need real-time data, check the report's cache settings or use the JSON endpoint for fresh data.
+</Note>
+
+## Scheduling Reports
+
+For automated report generation:
+1. Use the JSON endpoint to fetch data programmatically
+2. Schedule via cron jobs or task schedulers
+3. Consider using the system's built-in report scheduling features (if available)
+
+## Related Endpoints
+
+- [Branches API](/api/branches) - Filter reports by branch
+- [Users API](/api/users) - Filter by loan officer

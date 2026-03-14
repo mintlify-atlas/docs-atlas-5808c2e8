@@ -1,0 +1,481 @@
+---
+title: Loan Management
+description: Complete loan origination, disbursement, and repayment tracking system
+---
+
+## Overview
+
+OpenCBS Cloud provides comprehensive loan management capabilities including loan product configuration, application processing, disbursement, schedule management, and repayment tracking. The system supports both individual and group lending methodologies.
+
+<CardGroup cols={2}>
+  <Card title="Loan Products" icon="box">
+    Configure lending products with rates, terms, fees, and accounting rules
+  </Card>
+  <Card title="Applications" icon="file-pen">
+    Process loan applications with credit committee workflow
+  </Card>
+  <Card title="Disbursement" icon="money-bill-transfer">
+    Disburse loans with payees and accounting entries
+  </Card>
+  <Card title="Repayments" icon="hand-holding-dollar">
+    Track installments, interest accrual, and payments
+  </Card>
+</CardGroup>
+
+## Loan Products
+
+### Product Configuration
+
+Loan products define the terms, conditions, and accounting rules for lending:
+
+```java
+@Entity
+@Table(name = "loan_products")
+public class LoanProduct extends BaseProduct {
+    @Column(name = "availability", nullable = false)
+    private int availability;
+    
+    @Column(name = "has_payees", nullable = false)
+    private boolean hasPayees;
+    
+    @Column(name = "top_up_allow", nullable = false)
+    private boolean topUpAllow;
+    
+    @Column(name = "top_up_max_limit")
+    private BigDecimal topUpMaxLimit;
+    
+    @Column(name = "top_up_max_olb")
+    private BigDecimal topUpMaxOlb;
+    
+    @ManyToMany
+    @JoinTable(name = "loan_products_entry_fees")
+    private List<EntryFee> fees;
+    
+    @ManyToMany
+    @JoinTable(name = "loan_products_penalties")
+    private Set<Penalty> penalties;
+    
+    @OneToMany(mappedBy = "loanProduct")
+    private List<LoanProductAccount> accounts;
+    
+    @Enumerated(EnumType.STRING)
+    private ScheduleBasedType scheduleBasedType;
+    
+    @OneToMany(mappedBy = "loanProduct")
+    private List<LoanProductProvision> provisions;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "early_partial_repayment_fee_type")
+    private EarlyRepaymentFeeType earlyPartialRepaymentFeeType;
+    
+    @Column(name = "early_partial_repayment_fee_value")
+    private BigDecimal earlyPartialRepaymentFeeValue;
+    
+    @Column(name = "maturity_date_max")
+    private LocalDate maturityDateMax;
+}
+```
+
+<Accordion title="Product Features Explained">
+  - **Availability**: Defines which profiles can access this product (bitmap flags)
+  - **Has Payees**: Whether loans can disburse to multiple payees
+  - **Top-up Allow**: Enables refinancing existing loans
+  - **Top-up Max Limit**: Maximum amount for loan top-ups
+  - **Top-up Max OLB**: Maximum outstanding balance for top-up eligibility
+  - **Schedule Based Type**: Installment calculation method (annuity, declining balance, etc.)
+  - **Provisions**: Loan loss provisioning rules
+  - **Early Repayment Fees**: Penalties for early settlement
+</Accordion>
+
+### Loan Product Accounts
+
+Each product is linked to accounting accounts for automated posting:
+
+```java
+@OneToMany(mappedBy = "loanProduct", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+private List<LoanProductAccount> accounts;
+```
+
+**Account Types:**
+- Principal account (asset)
+- Interest income account
+- Fee income account
+- Penalty income account
+- Loan loss provision account
+- Write-off account
+
+## Loan Applications
+
+### Application Structure
+
+Loan applications track the origination process from request to approval:
+
+```java
+@Entity
+@Table(name = "loan_applications")
+public class LoanApplication extends LoanBaseEntity {
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private LoanApplicationStatus status = LoanApplicationStatus.IN_PROGRESS;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_id", nullable = false)
+    private Profile profile;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_product_id", nullable = false)
+    private LoanProduct loanProduct;
+    
+    @OneToMany(mappedBy = "loanApplication", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @OrderBy("number ASC")
+    private List<LoanApplicationInstallment> installments;
+    
+    @OneToMany(mappedBy = "owner", cascade = {CascadeType.REFRESH})
+    private List<LoanApplicationAttachment> attachments;
+    
+    @OneToMany(mappedBy = "loanApplication")
+    private List<LoanApplicationPayees> loanApplicationPayees;
+    
+    @OneToMany(mappedBy = "loanApplication")
+    private Set<Collateral> collaterals;
+    
+    @OneToMany(mappedBy = "loanApplication")
+    private List<LoanApplicationEntryFee> loanApplicationEntryFees;
+    
+    @OneToMany(mappedBy = "loanApplication")
+    private List<Guarantor> guarantors;
+    
+    @OneToMany(mappedBy = "loanApplication")
+    private List<CreditCommitteeVote> creditCommitteeVotes;
+    
+    @OneToMany(mappedBy = "owner")
+    private List<LoanApplicationCustomFieldValue> customFieldValues;
+    
+    @Column(name = "schedule_manual_edited", nullable = false)
+    private Boolean scheduleManualEdited = Boolean.FALSE;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_line_id")
+    private CreditLine creditLine;
+}
+```
+
+<Tabs>
+  <Tab title="Application Status">
+    **Application Workflow:**
+    
+    1. **IN_PROGRESS**: Application being prepared
+    2. **PENDING**: Submitted for review
+    3. **APPROVED**: Credit committee approved
+    4. **REJECTED**: Application declined
+    5. **DISBURSED**: Loan disbursed (becomes active loan)
+    
+    <Note>
+      Applications can be edited while in IN_PROGRESS or PENDING status. Once approved or rejected, they become read-only.
+    </Note>
+  </Tab>
+  
+  <Tab title="Payees">
+    **Disbursement Payees:**
+    
+    Loans can disburse to multiple payees when `hasPayees` is enabled on the product:
+    
+    ```java
+    @OneToMany(mappedBy = "loanApplication")
+    private List<LoanApplicationPayees> loanApplicationPayees;
+    ```
+    
+    Common use cases:
+    - Pay suppliers directly for business loans
+    - Split disbursement between borrower and vendor
+    - Fee deductions at disbursement
+    - Refinancing existing obligations
+  </Tab>
+  
+  <Tab title="Credit Committee">
+    **Approval Workflow:**
+    
+    ```java
+    @OneToMany(mappedBy = "loanApplication")
+    private List<CreditCommitteeVote> creditCommitteeVotes;
+    ```
+    
+    - Multiple committee members can vote
+    - Configurable approval thresholds
+    - Vote history tracked for audit
+    - Comments and conditions captured
+  </Tab>
+</Tabs>
+
+### Collateral
+
+Applications support collateral tracking for secured lending:
+
+```java
+@Entity
+@Table(name = "collaterals")
+public class Collateral extends BaseEntity {
+    @Column(name = "name", nullable = false)
+    private String name;
+    
+    @Column(name = "amount", precision = 14, scale = 4)
+    private BigDecimal amount;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_application_id")
+    private LoanApplication loanApplication;
+    
+    @JoinColumn(name = "created_at")
+    private LocalDateTime createdAt;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id")
+    private User createdBy;
+    
+    @OneToMany(mappedBy = "collateral")
+    private List<CollateralCustomFieldValue> customFieldValues;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "type_of_collateral_id", nullable = false)
+    private TypeOfCollateral typeOfCollateral;
+    
+    @JoinColumn(name = "closed_at")
+    private LocalDateTime closedAt;
+}
+```
+
+**Collateral Features:**
+- Multiple collateral items per application
+- Valuation amount tracking
+- Custom fields for collateral details
+- Collateral type classification
+- Release tracking when loan is repaid
+
+## Active Loans
+
+### Loan Structure
+
+Once disbursed, applications become active loans:
+
+```java
+@Entity
+@Table(name = "loans")
+public class Loan extends LoanBaseEntity {
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private LoanStatus status = LoanStatus.ACTIVE;
+    
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_application_id")
+    private LoanApplication loanApplication;
+    
+    @OneToMany(mappedBy = "loan")
+    List<LoanAccount> loanAccountList;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_id", nullable = false)
+    private Profile profile;
+    
+    @OneToMany(mappedBy = "loan")
+    private List<LoanPenaltyAccount> loanPenaltyAccountList;
+    
+    @OneToMany(mappedBy = "loan")
+    private List<LoanSpecificProvision> loanSpecificProvisions;
+    
+    @Column(name = "schedule_manual_edited", nullable = false)
+    private Boolean scheduleManualEdited = Boolean.FALSE;
+}
+```
+
+**Loan Status Values:**
+- **ACTIVE**: Currently being repaid
+- **CLOSED**: Fully repaid and closed
+- **WRITTEN_OFF**: Bad debt written off
+- **RESCHEDULED**: Schedule modified
+- **RESTRUCTURED**: Terms modified
+
+## Repayment Schedules
+
+### Installment Structure
+
+Loan repayment schedules consist of installments:
+
+```java
+@Entity
+@Table(name = "loans_installments")
+public class LoanInstallment extends BaseInstallment {
+    @Column(name = "loan_id", nullable = false)
+    private Long loanId;
+    
+    @Column(name = "start_date", nullable = false)
+    protected LocalDate startDate;
+    
+    @Column(name = "accrual_start_date", nullable = false)
+    protected LocalDate accrualStartDate;
+    
+    @Column(name = "accrued_interest", precision = 12, scale = 2)
+    protected BigDecimal accruedInterest;
+    
+    @Column(name = "penalty", precision = 12, scale = 2)
+    protected BigDecimal penalty;
+    
+    @Column(name = "paid_penalty", precision = 12, scale = 2)
+    protected BigDecimal paidPenalty;
+    
+    public BigDecimal getTotalDue() {
+        return principal
+            .subtract(paidPrincipal)
+            .add((BigDecimal.ZERO.compareTo(accruedInterest)==0)
+                    ?interest:accruedInterest)
+            .subtract(paidInterest);
+    }
+    
+    public InstallmentStatus getStatus(){
+        if (isPaid()) {
+            return InstallmentStatus.PAID;
+        } else if (isPartiallyPaid()) {
+            return InstallmentStatus.PARTIALLY_PAID;
+        }
+        return InstallmentStatus.UNPAID;
+    }
+}
+```
+
+<Accordion title="Installment Components">
+  Each installment tracks:
+  
+  - **Principal**: Amount of principal due
+  - **Interest**: Calculated interest amount
+  - **Accrued Interest**: Interest accumulated to date (for accrual accounting)
+  - **Paid Principal**: Principal payments received
+  - **Paid Interest**: Interest payments received
+  - **Penalty**: Late payment penalties
+  - **Paid Penalty**: Penalty payments received
+  - **Due Date**: When payment is expected
+  - **Start Date**: Period start for interest calculation
+  
+  The `getTotalDue()` method calculates remaining balance using accrued interest if available, falling back to scheduled interest.
+</Accordion>
+
+### Schedule Types
+
+The `scheduleBasedType` determines installment calculation:
+
+- **Annuity**: Equal installments (principal + interest)
+- **Declining Balance**: Equal principal, declining interest
+- **Flat**: Interest calculated on original principal
+- **Custom**: Manually defined installments
+
+<Note>
+  Manual schedule editing is tracked via `scheduleManualEdited` flag with user and timestamp for audit purposes.
+</Note>
+
+## Interest Accrual
+
+The system supports accrual-based accounting for loans:
+
+```java
+@Column(name = "accrued_interest", precision = 12, scale = 2)
+protected BigDecimal accruedInterest;
+```
+
+**Accrual Process:**
+1. Daily interest accrual calculated
+2. Accrued interest posted to income account
+3. Installment due uses accrued amount
+4. Variance between scheduled and accrued interest tracked
+
+This ensures revenue recognition matches accounting standards (IFRS, GAAP).
+
+## Penalties and Fees
+
+### Entry Fees
+
+```java
+@OneToMany(mappedBy = "loanApplication")
+private List<LoanApplicationEntryFee> loanApplicationEntryFees;
+```
+
+Charged at disbursement based on product configuration.
+
+### Late Payment Penalties
+
+```java
+@OneToMany(mappedBy = "loan")
+private List<LoanPenaltyAccount> loanPenaltyAccountList;
+```
+
+Automatically calculated when installments become overdue based on product penalty rules.
+
+### Early Repayment Fees
+
+```java
+@Column(name = "early_partial_repayment_fee_value")
+private BigDecimal earlyPartialRepaymentFeeValue;
+
+@Column(name = "early_total_repayment_fee_value")
+private BigDecimal earlyTotalRepaymentFeeValue;
+```
+
+Charges for paying off loans before scheduled maturity.
+
+## Provisions
+
+Loan loss provisioning for risk management:
+
+```java
+@OneToMany(mappedBy = "loan")
+private List<LoanSpecificProvision> loanSpecificProvisions;
+```
+
+**Provisioning Rules:**
+- Days past due thresholds
+- Percentage of outstanding balance
+- Specific vs. general provisions
+- Automated calculation on day closure
+
+## Group Loans
+
+Support for group lending methodologies:
+
+```java
+public class GroupLoanApplication { }
+```
+
+**Group Loan Features:**
+- Single loan to group profile
+- Individual member tracking
+- Shared liability or individual liability
+- Member-level repayment allocation
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Product Design" icon="box-open">
+    - Configure accounting rules accurately
+    - Set appropriate penalty thresholds  
+    - Test schedule calculations thoroughly
+    - Document product terms clearly
+  </Card>
+  
+  <Card title="Application Processing" icon="list-check">
+    - Complete collateral documentation
+    - Obtain all required approvals
+    - Verify payee information
+    - Review schedule before approval
+  </Card>
+  
+  <Card title="Schedule Management" icon="calendar">
+    - Minimize manual schedule edits
+    - Document reasons for rescheduling
+    - Verify accrual calculations
+    - Monitor overdue installments
+  </Card>
+  
+  <Card title="Risk Management" icon="shield-halved">
+    - Regular provisioning reviews
+    - Monitor portfolio at risk (PAR)
+    - Track collateral coverage ratios
+    - Implement early warning indicators
+  </Card>
+</CardGroup>

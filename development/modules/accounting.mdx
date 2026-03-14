@@ -1,0 +1,624 @@
+---
+title: Accounting Module
+description: Double-entry accounting engine with hierarchical chart of accounts and automated entry generation
+---
+
+The accounting subsystem within the `opencbs-core` module provides a complete double-entry accounting engine supporting multi-currency operations, hierarchical account structures, and automated accounting entry generation.
+
+## Overview
+
+The accounting engine is a critical component that ensures financial integrity across all OpenCBS operations.
+
+<CardGroup cols={2}>
+  <Card title="Chart of Accounts" icon="sitemap">
+    Hierarchical account structure with flexible grouping
+  </Card>
+  <Card title="Double-Entry System" icon="scale-balanced">
+    Complete double-entry bookkeeping with validation
+  </Card>
+  <Card title="Multi-Currency" icon="coins">
+    Support for multiple currencies and exchange rates
+  </Card>
+  <Card title="Automated Entries" icon="gears">
+    Automatic entry generation from business events
+  </Card>
+</CardGroup>
+
+## Accounting Domain Model
+
+The accounting domain model consists of accounts and entries.
+
+### Account Entity
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/domain/Account.java`
+
+Accounts represent GL (General Ledger) accounts in the chart of accounts.
+
+```java
+@Entity
+@Table(name = "accounts")
+public class Account extends BaseEntity {
+    private String number;
+    private String name;
+    private AccountType type;
+    private Account parent;
+    private Currency currency;
+    private Boolean isDebit;
+    private Boolean locked;
+    private Boolean validateOff;
+    private Branch branch;
+}
+```
+
+### Account Hierarchy
+
+The chart of accounts uses a hierarchical structure:
+
+<Accordion title="Account Type Hierarchy">
+  **BALANCE (Root Level)**
+  - Assets
+  - Liabilities
+  - Equity
+  
+  **GROUP (Category Level)**
+  - Current Assets
+  - Fixed Assets
+  - Current Liabilities
+  - Long-term Liabilities
+  - Retained Earnings
+  
+  **SUBGROUP (Subcategory Level)**
+  - Cash and Cash Equivalents
+  - Accounts Receivable
+  - Loan Portfolio
+  - Savings Accounts
+  - Interest Payable
+  
+  **ACCOUNT (Detail Level)**
+  - Specific GL accounts for transactions
+  - Example: "1010 - Cash on Hand"
+  - Example: "1400 - Loan Portfolio - Consumer Loans"
+</Accordion>
+
+### Account Properties
+
+<Tabs>
+  <Tab title="Core Properties">
+    **Number** - Unique account number
+    
+    **Name** - Account description
+    
+    **Type** - Account type in hierarchy
+    ```
+    BALANCE, GROUP, SUBGROUP, ACCOUNT
+    ```
+    
+    **Parent** - Parent account in hierarchy
+    
+    **Currency** - Account currency
+  </Tab>
+  <Tab title="Behavior Flags">
+    **isDebit** - Normal balance side
+    - `true` = Debit balance (Assets, Expenses)
+    - `false` = Credit balance (Liabilities, Equity, Income)
+    
+    **locked** - Account lock status
+    - Locked accounts cannot have transactions
+    
+    **validateOff** - Skip validation
+    - Allows negative balances when disabled
+  </Tab>
+  <Tab title="Additional Info">
+    **Branch** - Branch assignment
+    
+    **Tags** - Flexible tagging system
+    - System tags for special accounts
+    - User-defined tags for reporting
+    
+    **Extended Tags** - Additional metadata
+  </Tab>
+</Tabs>
+
+## AccountingEntry Entity
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/domain/AccountingEntry.java:40`
+
+Represents a single accounting entry (journal entry) in the system.
+
+```java
+@Entity
+@Table(name = "accounting_entries")
+public class AccountingEntry extends BaseEntity {
+    private Account debitAccount;
+    private Account creditAccount;
+    private BigDecimal amount;
+    private LocalDateTime createdAt;
+    private LocalDateTime effectiveAt;
+    private User createdBy;
+    private Branch branch;
+    private String description;
+    private ExtraJson extra;
+    private Boolean deleted;
+}
+```
+
+### Entry Properties
+
+<CardGroup cols={2}>
+  <Card title="Accounts">
+    **debitAccount** - Account to debit
+    
+    **creditAccount** - Account to credit
+    
+    Ensures double-entry: every debit has an equal credit
+  </Card>
+  <Card title="Amounts">
+    **amount** - Transaction amount
+    
+    Must be positive (non-zero)
+    
+    Precision: 14 digits, 2 decimal places
+  </Card>
+  <Card title="Timestamps">
+    **createdAt** - When entry was created
+    
+    **effectiveAt** - When entry takes effect
+    
+    Allows backdating for corrections
+  </Card>
+  <Card title="Metadata">
+    **description** - Entry description
+    
+    **extra** - Additional JSON data
+    
+    **createdBy** - User who created entry
+  </Card>
+</CardGroup>
+
+## Accounting Entry Service
+
+The AccountingEntryService manages the creation and validation of accounting entries.
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/services/AccountingEntryService.java:38`
+
+### Core Methods
+
+<Tabs>
+  <Tab title="Entry Creation">
+    **create(AccountingEntry)** - Create single entry
+    
+    **create(List&lt;AccountingEntry&gt;)** - Create multiple entries
+    
+    Both methods validate entries before saving.
+  </Tab>
+  <Tab title="Entry Validation">
+    **validateAccountingEntry(AccountingEntry)**
+    
+    Location: AccountingEntryService.java:50
+    
+    Validation checks:
+    1. Currency match between debit and credit accounts
+    2. Sufficient funds on credit accounts (for credit balance)
+    3. Sufficient funds on debit accounts (for debit balance)
+    4. Account not locked
+    5. Amount is positive
+  </Tab>
+  <Tab title="Entry Queries">
+    **findById(Long)** - Get entry by ID
+    
+    **findAll(Pageable)** - List all entries
+    
+    **getAll(SortedAccountingEntryDto, Pageable)** - Filtered query
+    
+    **getAccountingEntriesByAccount(Account, from, to)** - Account history
+  </Tab>
+  <Tab title="Account Operations">
+    **findAccountOperations(Account, Pageable, from, to)**
+    
+    Location: AccountingEntryService.java:99
+    
+    Returns operations view with:
+    - Running balance
+    - Debit/credit amounts
+    - Source account
+    - Document reference
+  </Tab>
+</Tabs>
+
+### Entry Validation Logic
+
+The validation process ensures accounting integrity:
+
+<Accordion title="Validation Rules">
+  **Currency Match** (Line 56-57)
+  ```java
+  if (!debit.getCurrency().getId().equals(credit.getCurrency().getId()))
+      throw new RuntimeException("Accounts have different currencies...");
+  ```
+  
+  **Sufficient Funds - Credit Balance Account** (Line 58-59)
+  ```java
+  if (!debit.getIsDebit() && !debit.getValidateOff() && 
+      accountService.getAccountBalance(...).compareTo(amount) < 0)
+      throw new RuntimeException("Insufficient funds...");
+  ```
+  
+  **Sufficient Funds - Debit Balance Account** (Line 60-61)
+  ```java
+  if (credit.getIsDebit() && !credit.getValidateOff() && 
+      accountService.getAccountBalance(...).compareTo(amount) < 0)
+      throw new RuntimeException("Insufficient funds...");
+  ```
+  
+  **Account Locked Check** (Line 62-65)
+  ```java
+  if (debit.getLocked())
+      throw new RuntimeException("Account is locked...");
+  if (credit.getLocked())
+      throw new RuntimeException("Account is locked...");
+  ```
+</Accordion>
+
+## Entry Generation
+
+Accounting entries are automatically generated from business events throughout the system.
+
+### Entry Generation Workers
+
+**AccountingEntryWorker** - Orchestrates entry generation
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/workers/AccountingEntryWorker.java`
+
+**Implementation:** `AccountingEntryWorkerImpl`
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/workers/impl/AccountingEntryWorkerImpl.java`
+
+### Business Event Examples
+
+<Tabs>
+  <Tab title="Loan Disbursement">
+    When a loan is disbursed:
+    
+    ```
+    Debit: Loan Portfolio Account
+    Credit: Cash/Bank Account
+    Amount: Loan Amount
+    ```
+    
+    Generated by: Loan disbursement service
+  </Tab>
+  <Tab title="Loan Repayment">
+    When a loan payment is received:
+    
+    **Principal:**
+    ```
+    Debit: Cash/Bank Account
+    Credit: Loan Portfolio Account
+    Amount: Principal Amount
+    ```
+    
+    **Interest:**
+    ```
+    Debit: Cash/Bank Account
+    Credit: Interest Income Account
+    Amount: Interest Amount
+    ```
+    
+    Generated by: Repayment service
+  </Tab>
+  <Tab title="Interest Accrual">
+    Daily interest accrual:
+    
+    **Loan Interest:**
+    ```
+    Debit: Interest Receivable
+    Credit: Interest Income
+    Amount: Daily Interest
+    ```
+    
+    **Savings Interest:**
+    ```
+    Debit: Interest Expense
+    Credit: Interest Payable
+    Amount: Daily Interest
+    ```
+    
+    Generated by: Day closure processors
+  </Tab>
+  <Tab title="Savings Deposit">
+    When funds are deposited:
+    
+    ```
+    Debit: Cash/Bank Account
+    Credit: Savings Liability Account
+    Amount: Deposit Amount
+    ```
+    
+    Generated by: Savings worker
+  </Tab>
+</Tabs>
+
+## Account Service
+
+Manages account operations and balance calculations.
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/services/AccountService.java`
+
+### Key Operations
+
+<CardGroup cols={2}>
+  <Card title="Balance Calculation">
+    **getAccountBalance(accountId, date)**
+    
+    Calculates account balance at a point in time by summing all entries
+  </Card>
+  <Card title="Account Hierarchy">
+    **findAllAccountByParentId(parentId)**
+    
+    Returns all child accounts for reporting
+  </Card>
+  <Card title="Account Lookup">
+    **findOne(accountId)**
+    
+    Retrieves account by ID
+  </Card>
+  <Card title="Account Type">
+    **getAccountTypeByAccountId(accountId)**
+    
+    Determines account type in hierarchy
+  </Card>
+</CardGroup>
+
+## Account Balance Tracking
+
+**AccountBalance** - Snapshot balance tracking
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/domain/AccountBalance.java`
+
+Optional performance optimization storing periodic balance snapshots to speed up balance calculations.
+
+## Account Tags
+
+Flexible tagging system for account categorization and special designations.
+
+### Tag Types
+
+**AccountTag** - Simple tag association
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/domain/AccountTag.java`
+
+**AccountExtendedTag** - Tag with additional metadata
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/domain/AccountExtendedTag.java`
+
+**AccountTagType** - Tag type definition
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/domain/AccountTagType.java`
+
+### System Tags
+
+<Accordion title="Common System Tags">
+  **CASH_ACCOUNT** - Cash and bank accounts
+  
+  **LOAN_PORTFOLIO** - Loan asset accounts
+  
+  **SAVINGS_LIABILITY** - Savings liability accounts
+  
+  **INTEREST_INCOME** - Interest income accounts
+  
+  **INTEREST_EXPENSE** - Interest expense accounts
+  
+  **FEE_INCOME** - Fee income accounts
+  
+  **PROVISION** - Loan loss provision accounts
+</Accordion>
+
+## Till and Vault Management
+
+Supports cash management through tills (tellers) and vaults.
+
+### Till Operations
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/controllers/TillController.java`
+
+Tills represent individual teller cash drawers:
+- Opening balance
+- Cash in/out transactions
+- Closing balance
+- Vault transfers
+
+### Vault Operations
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/controllers/VaultController.java`
+
+Vaults represent secure cash storage:
+- Till replenishment
+- Bank deposits
+- Cash transfers
+
+### Till Accounting Entries
+
+**AccountingEntryTill** - Link between entries and tills
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/domain/AccountingEntryTill.java`
+
+## Balance Sheet and Reports
+
+The accounting system supports financial reporting.
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/controllers/BalanceSheetController.java`
+
+### Financial Reports
+
+<CardGroup cols={3}>
+  <Card title="Balance Sheet">
+    Assets, Liabilities, and Equity at a point in time
+  </Card>
+  <Card title="Income Statement">
+    Revenue and Expenses over a period
+  </Card>
+  <Card title="Trial Balance">
+    All account balances with totals
+  </Card>
+  <Card title="General Ledger">
+    Detailed transaction listing
+  </Card>
+  <Card title="Cash Flow">
+    Cash movements analysis
+  </Card>
+  <Card title="Account Statement">
+    Individual account history
+  </Card>
+</CardGroup>
+
+## Multi-Currency Support
+
+**Currency** - Currency definition
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/domain/Currency.java`
+
+**ExchangeRate** - Currency exchange rates
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/domain/ExchangeRate.java`
+
+Features:
+- Multiple currencies support
+- Historical exchange rates
+- Currency-specific accounts
+- Exchange gain/loss accounting
+
+## Entry Logging and Audit
+
+**AccountingEntryLog** - Entry modification log
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/domain/AccountingEntryLog.java`
+
+**AccountingEntryListener** - Audit event listener
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/analytics/accounting/AccountingEntryListener.java`
+
+Tracks:
+- Entry creation
+- Entry modification
+- Entry deletion (soft delete)
+- User and timestamp
+
+## Accounting Analytics
+
+Supports analytics and reporting on accounting data.
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/analytics/accounting/`
+
+- Account activity analysis
+- Balance trends
+- Transaction volume
+- User activity
+
+## Data Transfer Objects
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/dto/`
+
+<Tabs>
+  <Tab title="Account DTOs">
+    **AccountDto** - Basic account information
+    
+    **AccountCreateDto** - Account creation request
+    
+    **AccountBalanceDto** - Account with balance
+    
+    **ExtendedAccountDto** - Account with metadata
+  </Tab>
+  <Tab title="Entry DTOs">
+    **AccountingEntryDto** - Entry information
+    
+    **SortedAccountingEntryDto** - Entry query parameters
+    
+    **AccountOperationDto** - Account operation view
+    
+    **AccountingTransactionDto** - Transaction request
+  </Tab>
+</Tabs>
+
+## Validators
+
+Validation for accounting operations.
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/validators/`
+
+- Account creation validation
+- Account hierarchy validation
+- Entry validation (service layer)
+- Balance validation
+
+## REST Controllers
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/accounting/controllers/`
+
+<CardGroup cols={2}>
+  <Card title="AccountController">
+    Account CRUD operations
+  </Card>
+  <Card title="AccountingController">
+    Accounting entry operations
+  </Card>
+  <Card title="TillController">
+    Till management
+  </Card>
+  <Card title="VaultController">
+    Vault management
+  </Card>
+  <Card title="BalanceSheetController">
+    Financial reports
+  </Card>
+</CardGroup>
+
+## Accounting Module Structure
+
+```
+opencbs-core/src/main/java/com/opencbs/core/accounting/
+├── domain/              # Accounting entities
+│   ├── Account.java
+│   ├── AccountingEntry.java
+│   ├── AccountBalance.java
+│   ├── AccountTag.java
+│   └── ...
+├── services/            # Business logic
+│   ├── AccountService.java
+│   ├── AccountingEntryService.java
+│   └── ...
+├── repositories/        # Data access
+│   ├── AccountRepository.java
+│   ├── AccountingEntryRepository.java
+│   └── ...
+├── controllers/         # REST API
+│   ├── AccountController.java
+│   ├── AccountingController.java
+│   └── ...
+├── dto/                # Data transfer objects
+├── mappers/            # Entity-DTO mappers
+└── validators/         # Validation logic
+```
+
+## Integration with Other Modules
+
+The accounting engine integrates with all business modules:
+
+<CardGroup cols={2}>
+  <Card title="Loans Module">
+    - Loan portfolio accounts
+    - Interest income/receivable
+    - Fee income
+    - Provision accounts
+  </Card>
+  <Card title="Savings Module">
+    - Savings liability accounts
+    - Interest expense/payable
+    - Fee income accounts
+  </Card>
+</CardGroup>
+
+## Related Documentation
+
+- [Core Module](/development/modules/core) - Foundation module overview
+- [Loans Module](/development/modules/loans) - Loan accounting integration
+- [Savings Module](/development/modules/savings) - Savings accounting integration

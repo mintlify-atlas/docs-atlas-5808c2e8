@@ -1,0 +1,291 @@
+---
+title: Understanding Loan Schedules
+description: Learn how loan repayment schedules work in OpenCBS Cloud
+---
+
+The loan schedule is a detailed breakdown of all expected repayment installments, showing principal, interest, fees, and payment dates for the life of the loan.
+
+## Viewing Loan Schedules
+
+Loan schedules can be accessed for both loan applications and disbursed loans.
+
+### For Loan Applications
+
+View the projected schedule before disbursement:
+```
+GET /loan-applications/{id}/schedule
+```
+
+Access via:
+- Open the loan application
+- Navigate to the **Schedule** tab
+- Review projected installments
+
+### For Disbursed Loans
+
+View the active loan schedule:
+```
+GET /loans/{id}/schedule
+```
+
+Access via:
+- Open the loan details page
+- Click on the **Schedule** tab
+- View all installments and payment status
+
+## Schedule Components
+
+Each installment in the schedule includes:
+
+| Component | Description |
+|-----------|-------------|
+| **Number** | Installment sequence number |
+| **Due Date** | Date payment is due |
+| **Principal** | Principal amount due |
+| **Interest** | Interest amount due |
+| **Fees** | Any applicable fees |
+| **Total** | Total payment due |
+| **Outstanding Balance** | Remaining principal after payment |
+| **Paid** | Whether installment has been paid |
+| **Paid Date** | Actual payment date |
+| **Paid Principal** | Amount of principal paid |
+| **Paid Interest** | Amount of interest paid |
+
+<Note>
+  The schedule automatically calculates all amounts based on the loan product configuration, interest rate, term, and disbursement date.
+</Note>
+
+## Schedule Calculation Methods
+
+OpenCBS Cloud supports multiple schedule calculation methods:
+
+### Equal Installments (Annuity)
+- Fixed payment amount each period
+- Principal increases, interest decreases over time
+- Most common for consumer loans
+
+### Equal Principal
+- Fixed principal amount each period
+- Interest calculated on declining balance
+- Total payment decreases over time
+
+### Flat Interest
+- Interest calculated on original principal
+- Same interest amount each period
+- Common in microfinance
+
+### Declining Balance
+- Interest calculated on remaining balance
+- More accurate interest calculation
+- Industry standard method
+
+<Tip>
+  The calculation method is configured in the loan product. Different products can use different methods based on your institution's policies.
+</Tip>
+
+## Grace Periods
+
+Loans may include grace periods:
+
+### Principal Grace Period
+- Only interest payments during grace period
+- Principal payments begin after grace period ends
+- Extends total loan term
+
+### Interest Grace Period
+- No interest accrues during grace period
+- Reduces total interest paid
+- Less common in practice
+
+## Rescheduling Loans
+
+Loans can be rescheduled to modify the payment schedule:
+
+<Steps>
+  <Step title="Validate Reschedule">
+    Before rescheduling, validate the proposed changes:
+    ```
+    PUT /loans/{id}/reschedule/validate
+    ```
+
+    This endpoint checks:
+    - New terms are within allowed parameters
+    - No pending payments or violations
+    - User has appropriate permissions
+  </Step>
+
+  <Step title="Apply Schedule Update">
+    Update the loan schedule:
+    ```
+    PUT /loans/{id}/schedule-update
+    ```
+
+    Provide:
+    - Modified installment details
+    - Reason for rescheduling
+    - Any applicable fees
+  </Step>
+
+  <Step title="Confirm Changes">
+    Review the updated schedule:
+    - Verify new installment amounts
+    - Check updated due dates
+    - Confirm outstanding balance calculations
+  </Step>
+</Steps>
+
+<Note>
+  Rescheduling may require special permissions and approval workflows depending on your institution's policies.
+</Note>
+
+## Schedule Status Indicators
+
+Installments are marked with different statuses:
+
+- **Pending** - Future payment not yet due
+- **Due** - Payment is due (within current period)
+- **Overdue** - Payment past due date
+- **Paid** - Payment received in full
+- **Partial** - Partial payment received
+- **Late** - Paid after due date
+
+## Accrued Interest
+
+View accrued interest between payment dates:
+
+- Interest accrues daily based on outstanding principal
+- Displayed on the loan detail page
+- Updated in real-time
+- Included in next payment amount
+
+## Fees in the Schedule
+
+The schedule may include various fees:
+
+### Periodic Fees
+- Charged on specific installments
+- Can be monthly, quarterly, or one-time
+- Examples: account maintenance, insurance
+
+### Entry Fees
+- One-time fees at disbursement
+- May be capitalized into loan or paid separately
+- Examples: origination fee, processing fee
+
+### Penalty Fees
+- Applied for late payments
+- Calculated based on days overdue
+- Added to scheduled amounts
+
+## Schedule Export and Printing
+
+Export loan schedules for:
+- Client documentation
+- Loan agreements
+- Reporting purposes
+
+Options:
+- PDF format for printing
+- Excel/CSV for analysis
+- Print preview from browser
+
+## Prepayment Impact
+
+When clients make early or extra payments:
+
+### Prepayment Application
+Payments can be applied to:
+1. Fees and penalties first
+2. Accrued interest
+3. Principal (reduces balance)
+
+### Schedule Adjustment Options
+- **Reduce installment amount** - Keep same term, lower payments
+- **Reduce term** - Keep same payment, finish earlier
+- **One-time reduction** - Credit to next installment
+
+<Tip>
+  Prepayment policies are configured in the loan product settings. Some products may charge early repayment fees.
+</Tip>
+
+## Viewing Payment History
+
+Compare scheduled vs. actual payments:
+
+- View payment transaction history
+- See when payments were received
+- Identify partial or late payments
+- Track payment method used
+
+## Schedule in Different Currencies
+
+For multi-currency institutions:
+
+- Schedule displays in loan currency
+- Exchange rates fixed at disbursement
+- Payments accepted in loan currency
+- Conversion rates apply if paid in different currency
+
+## Holidays and Non-Working Days
+
+Schedule respects your institution's holiday calendar:
+
+- Holidays configured in system settings
+- Due dates auto-adjust to next business day
+- Or previous business day (based on configuration)
+- Grace periods may account for holidays
+
+Holiday configuration:
+```
+GET /holidays
+```
+
+## Actualization and Accruals
+
+<Note>
+  **Last Actualization Date** is important for accurate interest calculations. The system tracks when interest was last calculated and accrued.
+</Note>
+
+When processing repayments, the system checks:
+- Last actualization date
+- Days since last accrual
+- Current accrued interest
+- Warns if dates don't match
+
+## Best Practices
+
+<Tip>
+  **Schedule Management Tips**
+  - Review schedules carefully before disbursement
+  - Verify first payment date is correctly set
+  - Check that installment amounts match client expectations
+  - Ensure holiday calendar is up to date
+  - Document any reschedule reasons thoroughly
+  - Communicate schedule changes to clients immediately
+</Tip>
+
+## Common Questions
+
+**Why doesn't my schedule match the expected payment?**
+- Check grace periods applied
+- Verify interest calculation method
+- Review any fees included
+- Confirm disbursement date
+
+**Can I change an installment date?**
+- Use the reschedule function
+- Requires appropriate permissions
+- May trigger approval workflow
+
+**How are partial payments reflected?**
+- Applied to fees, interest, then principal
+- Installment marked as partially paid
+- Remaining balance shown
+- May affect subsequent installments
+
+## Next Steps
+
+- [Process loan repayments](/guides/repayments)
+- [Generate loan reports](/guides/reports)
+- Review loan performance metrics
+- Monitor portfolio quality

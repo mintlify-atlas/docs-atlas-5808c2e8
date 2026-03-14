@@ -1,0 +1,547 @@
+---
+title: Teller Operations
+description: Guide to managing teller and cashier operations in OpenCBS Cloud
+---
+
+Teller operations are the front-line cash handling functions in your institution. This guide covers how tellers and cashiers process deposits, withdrawals, and loan repayments through the OpenCBS Cloud system.
+
+## Overview
+
+The teller module manages:
+
+- Cash deposits and withdrawals
+- Loan repayments
+- Savings account transactions
+- Current account transactions
+- Till/vault management
+- Daily cash reconciliation
+
+## Teller System Components
+
+### Tellers
+
+Tellers are users authorized to process cash transactions:
+- Individual user accounts
+- Specific permissions for teller operations
+- Assigned to specific tills/vaults
+- Transaction limits may apply
+
+View all tellers:
+```
+GET /users/tellers
+```
+
+### Tills
+
+Tills are cash drawers assigned to tellers:
+- Each till has a unique ID
+- Linked to a specific vault
+- Tracks cash balance
+- Opening and closing balances
+- Transaction history
+
+### Vaults
+
+Vaults are cash storage locations:
+- Branch-level cash management
+- Multiple tills per vault
+- Opening float management
+- Cash transfer between vaults
+
+## Till Operations Workflow
+
+<Steps>
+  <Step title="Open Till">
+    At the start of business day:
+
+    1. Teller logs into the system
+    2. Navigate to **Teller Management**
+    3. Select assigned till
+    4. Click **Open Till**
+    5. Count and enter opening cash balance
+    6. Verify denominations (if required)
+    7. Submit to open till for transactions
+
+    <Note>
+      The opening balance should match the closing balance from the previous business day plus any overnight deposits or transfers.
+    </Note>
+  </Step>
+
+  <Step title="Process Transactions">
+    Throughout the day, process customer transactions:
+    - Deposits
+    - Withdrawals
+    - Loan repayments
+    - Account transfers
+
+    Each transaction updates the till balance automatically.
+  </Step>
+
+  <Step title="Close Till">
+    At end of business day:
+
+    1. Stop accepting new transactions
+    2. Count physical cash in till
+    3. Click **Close Till**
+    4. Enter actual closing cash count
+    5. System calculates expected vs. actual
+    6. Reconcile any discrepancies
+    7. Submit closing report
+  </Step>
+</Steps>
+
+## Processing Cash Deposits
+
+### Current Account Deposit
+
+<Steps>
+  <Step title="Navigate to Operation">
+    - Go to **Teller Operations**
+    - Select **Deposit** operation
+    - Or access from client's account page
+  </Step>
+
+  <Step title="Enter Deposit Details">
+    Complete the deposit form:
+    - Select client profile
+    - Enter account number
+    - Verify account balance displays
+    - Enter deposit amount
+    - Select payment method (cash)
+    - Add reference/receipt number (optional)
+  </Step>
+
+  <Step title="Submit Transaction">
+    Click **Submit** to process:
+    - System validates account is active
+    - Checks till has sufficient capacity
+    - Creates deposit transaction
+    - Updates account balance
+    - Updates till cash balance
+    - Generates receipt
+  </Step>
+</Steps>
+
+API endpoint:
+```
+POST /tills/{tillId}/operations/deposit
+```
+
+Request:
+```json
+{
+  "profileId": 123,
+  "accountId": 456,
+  "amount": 1000.00,
+  "description": "Cash deposit"
+}
+```
+
+### Savings Account Deposit
+
+Similar to current account deposits:
+
+```
+POST /tills/{tillId}/operations/deposit-saving
+```
+
+Request:
+```json
+{
+  "profileId": 123,
+  "savingId": 789,
+  "amount": 500.00,
+  "description": "Savings deposit"
+}
+```
+
+## Processing Cash Withdrawals
+
+### Current Account Withdrawal
+
+<Steps>
+  <Step title="Select Withdrawal Operation">
+    - Navigate to **Teller Operations**
+    - Click **Withdrawal**
+    - Or access from client account
+  </Step>
+
+  <Step title="Verify Customer Identity">
+    Before processing:
+    - Request valid identification
+    - Verify customer name matches account
+    - Check authorization if not account holder
+    - For large amounts, consider additional verification
+  </Step>
+
+  <Step title="Check Account Balance">
+    System displays:
+    - Current account balance
+    - Available balance (excluding holds)
+    - Minimum balance requirements
+  </Step>
+
+  <Step title="Enter Withdrawal Amount">
+    - Enter amount requested
+    - System validates against available balance
+    - Ensures minimum balance maintained
+    - Checks daily withdrawal limits
+  </Step>
+
+  <Step title="Process Transaction">
+    Submit the withdrawal:
+    - Verify till has sufficient cash
+    - Create withdrawal transaction
+    - Update account balance
+    - Reduce till cash balance
+    - Print receipt
+  </Step>
+
+  <Step title="Disburse Cash">
+    - Count cash in front of customer
+    - Have customer verify amount
+    - Provide receipt
+    - Log any discrepancies immediately
+  </Step>
+</Steps>
+
+API endpoint:
+```
+POST /tills/{tillId}/operations/withdraw
+```
+
+Request:
+```json
+{
+  "profileId": 123,
+  "accountId": 456,
+  "amount": 500.00,
+  "description": "Cash withdrawal"
+}
+```
+
+### Savings Account Withdrawal
+
+```
+POST /tills/{tillId}/operations/withdraw-saving
+```
+
+<Note>
+  Savings withdrawals may have additional restrictions:
+  - Minimum number of days since deposit
+  - Monthly withdrawal limits
+  - Early withdrawal penalties
+  - Notice period requirements
+</Note>
+
+## Processing Loan Repayments via Teller
+
+Tellers commonly process loan repayments:
+
+<Steps>
+  <Step title="Access Loan Repayment">
+    Two methods:
+
+    **Method 1: Through Loan**
+    - Search for loan/client
+    - Open loan details
+    - Click **Repayment**
+
+    **Method 2: Through Teller Operations**
+    - Teller operations menu
+    - Select "Loan Repayment"
+    - Enter loan number
+  </Step>
+
+  <Step title="Verify Loan Details">
+    System displays:
+    - Loan number and client name
+    - Outstanding balance
+    - Current installment due
+    - Any overdue amounts
+    - Penalty charges
+  </Step>
+
+  <Step title="Enter Payment">
+    - Payment amount
+    - Payment method (cash)
+    - Repayment date (defaults to today)
+    - Repayment type (normal/early)
+  </Step>
+
+  <Step title="Process and Receipt">
+    - Submit payment
+    - Till cash balance increases
+    - Loan balance updated
+    - Print repayment receipt for client
+    - [See Repayments guide](/guides/repayments) for details
+  </Step>
+</Steps>
+
+## Viewing Till Operations
+
+View all transactions for a till:
+
+```
+GET /tills/{tillId}/operations
+```
+
+Response includes:
+- Operation ID and type
+- Date and time
+- Client information
+- Amount
+- Running balance
+- Teller who processed
+
+## Cash Transfer Operations
+
+### Till to Vault
+
+Transfer excess cash to vault:
+
+1. Navigate to **Cash Transfer**
+2. Select **Till to Vault**
+3. Enter amount to transfer
+4. Verify both till and vault balances
+5. Submit transfer
+6. Physical cash moved to vault
+7. Record receipt from vault custodian
+
+### Vault to Till
+
+Replenish till from vault:
+
+1. Request cash from vault
+2. Select **Vault to Till**
+3. Enter amount needed
+4. Verify vault has sufficient cash
+5. Submit transfer
+6. Count cash received from vault
+7. Confirm transfer in system
+
+### Between Tills
+
+Transfer between two tills (if permitted):
+
+1. Both tellers must be present
+2. Navigate to **Till Transfer**
+3. Select source and destination till
+4. Enter amount
+5. Both tellers verify
+6. Submit transfer
+7. Physical cash exchanged
+8. Both tills updated
+
+## End of Day Reconciliation
+
+<Steps>
+  <Step title="Stop Transactions">
+    At close of business:
+    - Stop accepting new transactions
+    - Complete any pending operations
+    - Print till activity report
+  </Step>
+
+  <Step title="Count Cash">
+    Physical cash count:
+    - Count all denominations
+    - Use denomination breakdown sheet
+    - Double-count large amounts
+    - Separate checks/vouchers
+  </Step>
+
+  <Step title="Enter Closing Balance">
+    In the system:
+    - Navigate to **Close Till**
+    - Enter actual cash count
+    - System shows expected balance
+    - Calculate difference (overage/shortage)
+  </Step>
+
+  <Step title="Reconcile Discrepancies">
+    If counts don't match:
+    - Recount physical cash
+    - Review all transactions
+    - Check for entry errors
+    - Verify all receipts accounted for
+    - Document discrepancy reason
+  </Step>
+
+  <Step title="Submit Closing Report">
+    Finalize till closure:
+    - Attach reconciliation notes
+    - Submit closing report
+    - Obtain supervisor approval if needed
+    - Transfer cash to vault or night safe
+    - Secure till area
+  </Step>
+</Steps>
+
+## Denomination Tracking
+
+Some institutions track cash by denomination:
+
+- Count of each bill/coin denomination
+- Total value per denomination
+- Grand total
+- Helps identify counterfeit currency
+- Improves accuracy
+
+## Transaction Limits
+
+Tellers may have transaction limits:
+
+- Maximum single transaction amount
+- Daily transaction volume limit
+- Requires supervisor override for large amounts
+- Configured per user or role
+
+<Tip>
+  If a transaction exceeds your limit, request supervisor approval or have the supervisor process the transaction.
+</Tip>
+
+## Teller Reports
+
+Key reports for teller operations:
+
+### Till Summary Report
+- Opening balance
+- Total deposits
+- Total withdrawals
+- Cash transfers
+- Closing balance
+- Overage/shortage
+
+### Teller Transaction Report
+- All transactions by teller
+- Detailed transaction list
+- Subtotals by type
+- Time period analysis
+
+### Cash Position Report
+- Current cash in all tills
+- Vault cash balance
+- Total branch cash position
+- Cash availability
+
+[See Reports guide](/guides/reports) for running these reports.
+
+## Best Practices
+
+<Tip>
+  **Teller Operation Best Practices**
+  
+  **Security:**
+  - Never leave till unattended
+  - Lock till when away from desk
+  - Don't share till access with other users
+  - Verify large bills for authenticity
+  - Be alert for suspicious transactions
+  
+  **Accuracy:**
+  - Count cash twice for large amounts
+  - Count cash in front of customer
+  - Verify customer identity for withdrawals
+  - Print and provide receipts for all transactions
+  - Record transactions immediately
+  
+  **Customer Service:**
+  - Greet customers professionally
+  - Verify transaction details with customer
+  - Explain fees or charges clearly
+  - Answer questions patiently
+  - Thank customer for their business
+  
+  **Compliance:**
+  - Follow AML/KYC procedures
+  - Report suspicious transactions
+  - Verify large transaction documentation
+  - Maintain customer confidentiality
+  - Adhere to all institutional policies
+</Tip>
+
+## Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| Till won't open | Check if previous day was closed properly |
+| Insufficient cash for withdrawal | Request vault transfer or refer to another teller |
+| Account balance doesn't display | Verify account number and status |
+| Transaction denied | Check account restrictions, limits, or holds |
+| Cash count discrepancy | Recount, review transactions, document variance |
+| System timeout | Check network connection, retry transaction |
+
+## Fraud Prevention
+
+### Red Flags
+
+Be alert for:
+- Unusually large cash transactions
+- Frequent deposits just below reporting thresholds
+- Customers avoiding identification
+- Requests to split transactions
+- Suspicious document quality
+- Nervous or evasive behavior
+
+### Response
+
+1. Follow institutional procedures
+2. Consult supervisor if unsure
+3. File suspicious activity report if required
+4. Don't alert customer to suspicions
+5. Complete transaction if safe and legal
+6. Document observations
+
+## Account Balance Verification
+
+Before processing withdrawals:
+
+```
+GET /accounting/get-account-balance/{accountId}
+```
+
+Returns:
+- Current balance
+- Available balance
+- Pending transactions
+- Holds or restrictions
+
+## Multi-Currency Operations
+
+For institutions handling multiple currencies:
+
+- Separate till balance per currency
+- Exchange rate display
+- Currency conversion transactions
+- Daily currency position report
+- Foreign currency cash limits
+
+## Integration with Accounting
+
+Teller transactions automatically:
+
+- Post to general ledger
+- Update account balances
+- Create accounting entries
+- Maintain audit trail
+- Generate financial reports
+
+## Mobile/Remote Tellers
+
+For field officers or mobile tellers:
+
+- Mobile app for teller operations
+- Offline transaction capability
+- Synchronization when online
+- GPS location tracking
+- Enhanced security measures
+
+## Next Steps
+
+- Complete teller training program
+- Review cash handling procedures
+- Practice till reconciliation
+- Learn fraud detection techniques
+- [Process loan repayments](/guides/repayments)
+- [Generate daily reports](/guides/reports)

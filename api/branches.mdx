@@ -1,0 +1,389 @@
+---
+title: 'Branch Management API'
+description: 'Manage organizational branches and locations'
+---
+
+## Overview
+
+The Branch Management API provides endpoints for creating, updating, and managing branches within your OpenCBS organization. Branches represent physical locations or organizational units where financial operations are conducted.
+
+## List All Branches
+
+Retrieve a paginated list of all branches.
+
+```http
+GET /api/branches
+```
+
+### Query Parameters
+
+<ParamField query="page" type="number" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+<ParamField query="size" type="number" default="20">
+  Number of items per page
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Sort field and direction (e.g., "name,asc")
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of branch objects
+</ResponseField>
+
+<ResponseField name="totalElements" type="number">
+  Total number of branches
+</ResponseField>
+
+<ResponseField name="totalPages" type="number">
+  Total number of pages
+</ResponseField>
+
+<ResponseField name="number" type="number">
+  Current page number
+</ResponseField>
+
+<ResponseField name="size" type="number">
+  Items per page
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/branches?page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  page: '0',
+  size: '20'
+});
+
+const response = await fetch(`https://your-instance.opencbs.cloud/api/branches?${params}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const data = await response.json();
+```
+</CodeGroup>
+
+## Get Branch by ID
+
+Retrieve detailed information about a specific branch.
+
+```http
+GET /api/branches/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the branch
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Branch unique identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Branch name
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Branch code (unique identifier)
+</ResponseField>
+
+<ResponseField name="address" type="string">
+  Physical address of the branch
+</ResponseField>
+
+<ResponseField name="phoneNumber" type="string">
+  Branch contact phone number
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  Branch email address
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Branch description or notes
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-instance.opencbs.cloud/api/branches/5 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const branchId = 5;
+const response = await fetch(`https://your-instance.opencbs.cloud/api/branches/${branchId}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const branch = await response.json();
+```
+</CodeGroup>
+
+## Branch Lookup (Search)
+
+Search for branches by name with pagination.
+
+```http
+GET /api/branches/lookup
+```
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Search term to filter branches by name (case-insensitive, partial match)
+</ParamField>
+
+<ParamField query="page" type="number" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+<ParamField query="size" type="number" default="20">
+  Number of items per page
+</ParamField>
+
+### Response
+
+Returns a paginated response with branches matching the search criteria.
+
+<ResponseField name="content" type="array">
+  Array of matching branch objects
+</ResponseField>
+
+<ResponseField name="totalElements" type="number">
+  Total number of branches matching the search
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/branches/lookup?search=downtown&page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  search: 'downtown',
+  page: '0',
+  size: '20'
+});
+
+const response = await fetch(`https://your-instance.opencbs.cloud/api/branches/lookup?${params}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const results = await response.json();
+```
+</CodeGroup>
+
+## Create Branch
+
+Create a new branch in the system.
+
+```http
+POST /api/branches
+```
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Branch name (must be unique)
+</ParamField>
+
+<ParamField body="code" type="string" required>
+  Branch code (must be unique, used as identifier)
+</ParamField>
+
+<ParamField body="address" type="string">
+  Physical address of the branch
+</ParamField>
+
+<ParamField body="phoneNumber" type="string">
+  Contact phone number
+</ParamField>
+
+<ParamField body="email" type="string">
+  Branch email address
+</ParamField>
+
+<ParamField body="description" type="string">
+  Additional notes or description
+</ParamField>
+
+### Response
+
+Returns the created branch object with assigned ID.
+
+<ResponseField name="id" type="number">
+  Newly created branch ID
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Branch name
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Branch code
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-instance.opencbs.cloud/api/branches \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Downtown Branch",
+    "code": "DTN-001",
+    "address": "123 Main Street, City, Country",
+    "phoneNumber": "+1-555-0100",
+    "email": "downtown@example.com",
+    "description": "Main downtown location"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-instance.opencbs.cloud/api/branches', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Downtown Branch',
+    code: 'DTN-001',
+    address: '123 Main Street, City, Country',
+    phoneNumber: '+1-555-0100',
+    email: 'downtown@example.com',
+    description: 'Main downtown location'
+  })
+});
+const branch = await response.json();
+```
+</CodeGroup>
+
+## Update Branch
+
+Update an existing branch's information.
+
+```http
+PUT /api/branches/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  The ID of the branch to update
+</ParamField>
+
+### Request Body
+
+Same fields as Create Branch. All fields are optional - only include fields you want to update.
+
+<ParamField body="name" type="string">
+  Updated branch name
+</ParamField>
+
+<ParamField body="code" type="string">
+  Updated branch code
+</ParamField>
+
+<ParamField body="address" type="string">
+  Updated address
+</ParamField>
+
+<ParamField body="phoneNumber" type="string">
+  Updated phone number
+</ParamField>
+
+<ParamField body="email" type="string">
+  Updated email address
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated description
+</ParamField>
+
+### Response
+
+Returns the updated branch object.
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://your-instance.opencbs.cloud/api/branches/5 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Downtown Branch - Updated",
+    "code": "DTN-001",
+    "address": "456 New Street, City, Country",
+    "phoneNumber": "+1-555-0200",
+    "email": "downtown.new@example.com",
+    "description": "Relocated downtown location"
+  }'
+```
+
+```javascript JavaScript
+const branchId = 5;
+const response = await fetch(`https://your-instance.opencbs.cloud/api/branches/${branchId}`, {
+  method: 'PUT',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Downtown Branch - Updated',
+    phoneNumber: '+1-555-0200',
+    email: 'downtown.new@example.com'
+  })
+});
+const updatedBranch = await response.json();
+```
+</CodeGroup>
+
+## Error Responses
+
+The API returns standard HTTP error codes:
+
+<ResponseField name="404" type="error">
+  Branch not found - The specified branch ID does not exist
+</ResponseField>
+
+<ResponseField name="400" type="error">
+  Validation error - Invalid data provided (e.g., duplicate code/name)
+</ResponseField>
+
+<ResponseField name="401" type="error">
+  Unauthorized - Invalid or missing authentication token
+</ResponseField>
+
+<ResponseField name="403" type="error">
+  Forbidden - Insufficient permissions to perform operation
+</ResponseField>
+
+## Best Practices
+
+<Tip>
+  Use unique and meaningful branch codes (e.g., "HQ-NY", "BRANCH-LA-001") that make it easy to identify branches in reports and transactions.
+</Tip>
+
+<Warning>
+  Branch codes cannot be changed after creation in some configurations. Choose carefully!
+</Warning>
+
+## Related Endpoints
+
+- [Users API](/api/users) - Assign users to branches
+- [Custom Fields](/admin/global-settings) - Add custom fields to branches

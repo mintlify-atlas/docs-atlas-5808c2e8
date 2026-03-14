@@ -1,0 +1,310 @@
+---
+title: Installation
+description: Complete guide to installing OpenCBS Cloud on your local development environment
+---
+
+# Installation
+
+This guide walks you through setting up OpenCBS Cloud on your local development environment. OpenCBS Cloud is a comprehensive Core Banking System built with Spring Boot and Angular.
+
+## Prerequisites
+
+Before installing OpenCBS Cloud, ensure you have the following software installed:
+
+<Steps>
+  <Step title="Install Java Development Kit 8">
+    OpenCBS Cloud requires Java 8 (JDK 1.8) to compile and run the backend services.
+
+    <CodeGroup>
+      ```bash Ubuntu/Debian
+      sudo apt update
+      sudo apt install openjdk-8-jdk
+      java -version
+      ```
+
+      ```bash macOS (Homebrew)
+      brew tap adoptopenjdk/openjdk
+      brew install --cask adoptopenjdk8
+      java -version
+      ```
+
+      ```bash Windows (Chocolatey)
+      choco install openjdk8
+      java -version
+      ```
+    </CodeGroup>
+
+    <Note>
+      Verify the installation by running `java -version`. You should see Java version 1.8.x in the output.
+    </Note>
+  </Step>
+
+  <Step title="Install Apache Maven">
+    Maven is required to build the Java backend modules.
+
+    <CodeGroup>
+      ```bash Ubuntu/Debian
+      sudo apt install maven
+      mvn -version
+      ```
+
+      ```bash macOS (Homebrew)
+      brew install maven
+      mvn -version
+      ```
+
+      ```bash Windows (Chocolatey)
+      choco install maven
+      mvn -version
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Install Node.js and Yarn">
+    The Angular frontend requires Node.js and Yarn for dependency management.
+
+    <CodeGroup>
+      ```bash Ubuntu/Debian
+      curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+      sudo apt install -y nodejs
+      npm install -g yarn
+      node --version
+      yarn --version
+      ```
+
+      ```bash macOS (Homebrew)
+      brew install node@14
+      npm install -g yarn
+      node --version
+      yarn --version
+      ```
+
+      ```bash Windows
+      # Download and install Node.js 14.x from nodejs.org
+      npm install -g yarn
+      node --version
+      yarn --version
+      ```
+    </CodeGroup>
+
+    <Note>
+      OpenCBS Cloud uses Angular 8.x, which works best with Node.js 10.x - 14.x.
+    </Note>
+  </Step>
+
+  <Step title="Install PostgreSQL">
+    OpenCBS Cloud uses PostgreSQL as its database. Version 9.4 or higher is required.
+
+    <CodeGroup>
+      ```bash Ubuntu/Debian
+      sudo apt install postgresql postgresql-contrib
+      sudo systemctl start postgresql
+      sudo systemctl enable postgresql
+      ```
+
+      ```bash macOS (Homebrew)
+      brew install postgresql@12
+      brew services start postgresql@12
+      ```
+
+      ```bash Windows
+      # Download and install from postgresql.org
+      # Or use Chocolatey:
+      choco install postgresql12
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Clone the Repository
+
+Clone the OpenCBS Cloud repository from GitHub:
+
+```bash
+git clone https://github.com/opencbs/opencbs-cloud.git
+cd opencbs-cloud
+```
+
+<Note>
+  The repository contains both the server (backend) and client (frontend) code in separate directories.
+</Note>
+
+## Database Setup
+
+OpenCBS Cloud uses Flyway for database migrations. The schema will be automatically created when you first run the application.
+
+<Steps>
+  <Step title="Create Database and User">
+    Connect to PostgreSQL and create a database for OpenCBS Cloud:
+
+    ```sql
+    -- Connect as postgres user
+    sudo -u postgres psql
+
+    -- Create database
+    CREATE DATABASE opencbs_cloud;
+
+    -- Create user
+    CREATE USER opencbs_user WITH ENCRYPTED PASSWORD 'your_secure_password';
+
+    -- Grant privileges
+    GRANT ALL PRIVILEGES ON DATABASE opencbs_cloud TO opencbs_user;
+
+    -- Exit psql
+    \q
+    ```
+
+    <Warning>
+      Replace `your_secure_password` with a strong password. Store this password securely as you'll need it for application configuration.
+    </Warning>
+  </Step>
+
+  <Step title="Verify Database Connection">
+    Test the connection to ensure the database is accessible:
+
+    ```bash
+    psql -h localhost -U opencbs_user -d opencbs_cloud
+    ```
+
+    Enter your password when prompted. If successful, you'll see the PostgreSQL prompt.
+  </Step>
+</Steps>
+
+## Install Backend Dependencies
+
+OpenCBS Cloud has a modular architecture with multiple Maven modules. Install all required dependencies:
+
+<CodeGroup>
+  ```bash Full Build
+  # Install all modules in the correct order
+  mvn -f ./server/opencbs-spring-boot-starter/pom.xml clean install -DskipTests
+  mvn -f ./server/opencbs-core/pom.xml clean install -DskipTests
+  mvn -f ./server/opencbs-loans/pom.xml clean install -DskipTests
+  mvn -f ./server/opencbs-borrowings/pom.xml clean install -DskipTests
+  mvn -f ./server/opencbs-savings/pom.xml clean install -DskipTests
+  mvn -f ./server/opencbs-term-deposits/pom.xml clean install -DskipTests
+  mvn -f ./server/opencbs-bonds/pom.xml clean install -DskipTests
+  ```
+
+  ```bash Using build.sh
+  # You can also use the provided build script
+  # Syntax: ./build.sh <version> <instance-name>
+  ./build.sh 1.0.0 server
+  ```
+</CodeGroup>
+
+<Note>
+  The build process installs the following modules in order:
+  - **opencbs-spring-boot-starter**: Parent configuration for Spring Boot
+  - **opencbs-core**: Core banking functionality (v0.0.1-SNAPSHOT)
+  - **opencbs-loans**: Loan management module
+  - **opencbs-borrowings**: Borrowings module
+  - **opencbs-savings**: Savings accounts module
+  - **opencbs-term-deposits**: Term deposits module
+  - **opencbs-bonds**: Bonds management module
+  - **opencbs-server**: Main application module
+</Note>
+
+## Install Frontend Dependencies
+
+Navigate to the client directory and install Angular dependencies:
+
+```bash
+cd client
+yarn install
+```
+
+This will install all required packages including:
+- Angular 8.1.4
+- Angular Material 8.2.3
+- NgRx for state management
+- And other frontend dependencies
+
+<Warning>
+  The initial `yarn install` may take several minutes as it downloads all dependencies. If you encounter memory issues during build, the project is configured to use increased memory limits (8GB for development, 16GB for production builds).
+</Warning>
+
+## Verify Installation
+
+After completing all installation steps, verify that everything is set up correctly:
+
+<CodeGroup>
+  ```bash Check Java
+  java -version
+  # Should output: java version "1.8.0_xxx"
+  ```
+
+  ```bash Check Maven
+  mvn -version
+  # Should output: Apache Maven 3.x.x
+  ```
+
+  ```bash Check Node.js and Yarn
+  node --version
+  # Should output: v14.x.x or v12.x.x
+  yarn --version
+  # Should output: 1.x.x
+  ```
+
+  ```bash Check PostgreSQL
+  psql --version
+  # Should output: psql (PostgreSQL) 9.4.x or higher
+  ```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="./configuration">
+    Configure database connections, application properties, and environment variables
+  </Card>
+  <Card title="Deployment" icon="rocket" href="./deployment">
+    Deploy OpenCBS Cloud using Docker or manual deployment methods
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Maven build fails with 'BUILD_VERSION not set'">
+    When building with Maven directly, you need to specify the BUILD_VERSION property:
+    
+    ```bash
+    mvn clean install -DBUILD_VERSION=1.0.0 -DskipTests
+    ```
+    
+    Alternatively, use the provided `build.sh` script which handles this automatically.
+  </Accordion>
+
+  <Accordion title="Yarn install fails with out-of-memory error">
+    The Angular build requires significant memory. Increase Node.js memory limit:
+    
+    ```bash
+    export NODE_OPTIONS="--max-old-space-size=8192"
+    yarn install
+    ```
+  </Accordion>
+
+  <Accordion title="PostgreSQL connection refused">
+    Ensure PostgreSQL is running:
+    
+    ```bash
+    # Ubuntu/Debian
+    sudo systemctl status postgresql
+    sudo systemctl start postgresql
+    
+    # macOS
+    brew services list
+    brew services start postgresql@12
+    ```
+  </Accordion>
+
+  <Accordion title="Java version mismatch">
+    OpenCBS Cloud requires Java 8. If you have multiple Java versions installed, set JAVA_HOME:
+    
+    ```bash
+    export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+    export PATH=$JAVA_HOME/bin:$PATH
+    ```
+  </Accordion>
+</AccordionGroup>

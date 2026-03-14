@@ -1,0 +1,338 @@
+---
+title: Client Management
+description: Comprehensive client profile management for persons, companies, and groups
+---
+
+## Overview
+
+OpenCBS Cloud provides a flexible client management system that supports three types of profiles: individual persons, companies, and groups. Each profile type can be customized with custom fields, attachments, and relationships to model your institution's client data requirements.
+
+<CardGroup cols={3}>
+  <Card title="Person Profiles" icon="user">
+    Individual clients with personal information and custom fields
+  </Card>
+  <Card title="Company Profiles" icon="building">
+    Corporate entities with company members and business details
+  </Card>
+  <Card title="Group Profiles" icon="users">
+    Group lending structures with multiple members
+  </Card>
+</CardGroup>
+
+## Profile Types
+
+<Tabs>
+  <Tab title="Person">
+    ### Person Profiles
+    
+    Person profiles represent individual clients in the system. They extend the base `Profile` entity with person-specific attributes.
+    
+    **Key Features:**
+    - First name and last name custom fields
+    - Personal attachments (ID documents, photos, etc.)
+    - Custom field values for flexible data capture
+    - Branch assignment
+    - Status tracking (LIVE, PENDING, etc.)
+    
+    **Data Structure:**
+    
+    ```java
+    @Entity
+    @DiscriminatorValue("PERSON")
+    public class Person extends Profile {
+        @OneToMany(mappedBy = "owner", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+        private List<PersonCustomFieldValue> customFieldValues;
+        
+        @OneToMany(mappedBy = "owner", cascade = {CascadeType.REFRESH})
+        private List<PersonAttachment> attachments;
+    }
+    ```
+    
+    The name is dynamically constructed from custom fields:
+    
+    ```java
+    public String getNameFromCustomFields() {
+        String firstName = // Retrieved from custom field "first_name"
+        String lastName = // Retrieved from custom field "last_name"
+        return firstName + " " + lastName;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Company">
+    ### Company Profiles
+    
+    Company profiles represent corporate entities and business clients.
+    
+    **Key Features:**
+    - Company name custom field
+    - Company members (shareholders, directors, etc.)
+    - Corporate attachments (registration documents, licenses)
+    - Custom field values for business information
+    - Branch assignment
+    
+    **Data Structure:**
+    
+    ```java
+    @Entity
+    @DiscriminatorValue("COMPANY")
+    public class Company extends Profile {
+        @OneToMany(mappedBy = "owner", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+        private List<CompanyCustomFieldValue> customFieldValues;
+        
+        @OneToMany(mappedBy = "owner", cascade = {CascadeType.REFRESH})
+        private List<CompanyAttachment> attachments;
+        
+        @OneToMany
+        @JoinColumn(name = "company_id")
+        private List<CompanyMember> companyMembers;
+    }
+    ```
+    
+    <Note>
+      Company members allow you to track individuals associated with the company, such as directors, shareholders, or authorized signatories.
+    </Note>
+  </Tab>
+  
+  <Tab title="Group">
+    ### Group Profiles
+    
+    Group profiles support group lending methodologies where multiple individuals form a borrowing group.
+    
+    **Key Features:**
+    - Group name custom field
+    - Group members with member relationships
+    - Group-level attachments
+    - Shared liability tracking
+    - Custom field values for group information
+    
+    **Data Structure:**
+    
+    ```java
+    @Entity
+    @DiscriminatorValue("GROUP")
+    public class Group extends Profile {
+        @OneToMany(mappedBy = "owner", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+        private List<GroupCustomFieldValue> customFieldValues;
+        
+        @OneToMany(mappedBy = "owner", cascade = {CascadeType.REFRESH})
+        private List<GroupAttachment> attachments;
+        
+        @OneToMany
+        @JoinColumn(name = "group_id")
+        private List<GroupMember> groupMembers;
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Base Profile Structure
+
+All profile types inherit from the base `Profile` entity, which provides common functionality:
+
+```java
+@Entity
+@Table(name = "profiles")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "[type]", discriminatorType = DiscriminatorType.STRING)
+public class Profile extends CreationInfoEntity {
+    @Column(name = "[type]", nullable = false)
+    private String type; // "PERSON", "COMPANY", or "GROUP"
+    
+    @Column(name = "[name]", nullable = false)
+    private String name;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private EntityStatus status;
+    
+    @Column(name = "version")
+    private Integer version;
+    
+    @ManyToOne
+    @JoinColumn(name = "branch_id", nullable = false)
+    private Branch branch;
+    
+    @ManyToMany
+    @JoinTable(name = "profiles_accounts",
+            joinColumns = @JoinColumn(name = "profile_id"),
+            inverseJoinColumns = @JoinColumn(name = "account_id"))
+    private Set<Account> currentAccounts = new HashSet<>();
+}
+```
+
+<Note>
+  The single-table inheritance strategy stores all profile types in one table with a discriminator column, providing efficient querying across all profile types.
+</Note>
+
+## Custom Fields
+
+### Overview
+
+Custom fields provide flexible, configurable data capture for profiles without requiring schema changes.
+
+**Custom Field Types:**
+- Text (single line)
+- Text area (multi-line)
+- Numeric
+- Decimal
+- Date
+- Boolean
+- Lookup (dropdown)
+- File upload
+
+### Custom Field Structure
+
+```java
+public abstract class CustomField<Tcfs extends CustomFieldSection> extends BaseEntity {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "section_id")
+    Tcfs section;
+    
+    @Column(name = "field_type", nullable = false)
+    @Enumerated(value = EnumType.STRING)
+    private CustomFieldType fieldType;
+    
+    @Column(name = "[name]", nullable = false, unique = true)
+    private String name;
+    
+    @Column(name = "caption", nullable = false)
+    private String caption;
+    
+    @Column(name = "is_unique", nullable = false)
+    private boolean unique;
+    
+    @Column(name = "is_required", nullable = false)
+    private boolean required;
+    
+    @Column(name = "[order]", nullable = false)
+    private int order;
+}
+```
+
+<Accordion title="Custom Field Configuration">
+  Custom fields are organized into sections for better UI organization. Each field has:
+  
+  - **Name**: Unique identifier (e.g., `first_name`, `national_id`)
+  - **Caption**: Display label shown to users
+  - **Field Type**: Determines input control and validation
+  - **Required**: Whether the field must have a value
+  - **Unique**: Whether values must be unique across all profiles
+  - **Order**: Display sequence within the section
+  - **Section**: Logical grouping (e.g., "Personal Information", "Address")
+</Accordion>
+
+## Relationships
+
+Profiles can be linked through relationships to model connections between clients.
+
+```java
+@Entity
+@Table(name = "relationships")
+public class Relationship extends BaseEntity {
+    @Column(name = "name", nullable = false)
+    private String name;
+}
+```
+
+**Common Relationship Types:**
+- Spouse
+- Parent/Child
+- Sibling
+- Business Partner
+- Guarantor
+- Reference
+
+<Note>
+  Relationships are configured at the system level and can be customized to match your institution's requirements.
+</Note>
+
+## Profile Accounts
+
+Profiles can be associated with multiple accounting accounts for tracking balances and transactions:
+
+```java
+@ManyToMany
+@JoinTable(name = "profiles_accounts",
+        joinColumns = @JoinColumn(name = "profile_id"),
+        inverseJoinColumns = @JoinColumn(name = "account_id"))
+private Set<Account> currentAccounts = new HashSet<>();
+```
+
+This enables:
+- Current account balances
+- Savings account tracking
+- Loan account management
+- Multi-currency account support
+
+## Status Management
+
+Profiles use the `EntityStatus` enumeration to track their lifecycle:
+
+- **PENDING**: Profile created but not yet active
+- **LIVE**: Active profile in use
+- **INACTIVE**: Temporarily suspended
+- **CLOSED**: Permanently closed profile
+
+<Accordion title="Status Workflow">
+  ```
+  PENDING → LIVE → INACTIVE → LIVE
+                ↓
+              CLOSED (terminal state)
+  ```
+  
+  Status transitions are typically controlled by workflow rules and user permissions.
+</Accordion>
+
+## Versioning
+
+The `version` field enables optimistic locking for concurrent updates:
+
+```java
+@Column(name = "version")
+private Integer version;
+```
+
+This prevents data loss when multiple users edit the same profile simultaneously.
+
+## Attachments
+
+Each profile type supports attachments for document management:
+
+- **Person**: ID cards, utility bills, photos
+- **Company**: Registration certificates, licenses, financial statements  
+- **Group**: Meeting minutes, group agreements, member lists
+
+Attachments are stored with metadata including upload date, user, and file type.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Custom Field Design" icon="pen-ruler">
+    - Use consistent naming conventions
+    - Group related fields in sections
+    - Set appropriate validation rules
+    - Mark critical fields as required
+  </Card>
+  
+  <Card title="Data Quality" icon="check-circle">
+    - Enable uniqueness for ID numbers
+    - Use lookup fields for standardized data
+    - Implement field-level permissions
+    - Regular data quality audits
+  </Card>
+  
+  <Card title="Performance" icon="gauge-high">
+    - Index frequently searched custom fields
+    - Limit number of custom fields per profile
+    - Use appropriate fetch strategies
+    - Archive inactive profiles
+  </Card>
+  
+  <Card title="Security" icon="shield">
+    - Implement field-level access control
+    - Audit sensitive field changes
+    - Encrypt PII in custom fields
+    - Regular backup of profile data
+  </Card>
+</CardGroup>

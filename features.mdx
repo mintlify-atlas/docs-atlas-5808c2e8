@@ -1,0 +1,393 @@
+---
+title: 'Key Features'
+description: 'Comprehensive overview of OpenCBS Cloud core banking features and capabilities'
+---
+
+OpenCBS Cloud is a flexible and scalable Core Banking System designed for Microfinance Institutions, Cooperative Financial Institutions, Digital lenders, and medium-sized banks. The system provides comprehensive front-office and back-office features that enable financial institutions to operate efficiently.
+
+## Core Banking Modules
+
+<CardGroup cols={2}>
+  <Card title="Client Management" icon="users" href="#client-management">
+    Manage individuals, companies, and groups with comprehensive profile tracking
+  </Card>
+  <Card title="Loan Management" icon="hand-holding-dollar" href="#loan-management">
+    Complete loan lifecycle from application to repayment
+  </Card>
+  <Card title="Savings Management" icon="piggy-bank" href="#savings-management">
+    Individual and group savings accounts with flexible products
+  </Card>
+  <Card title="Accounting" icon="calculator" href="#accounting">
+    Full double-entry accounting with automated entries
+  </Card>
+</CardGroup>
+
+## Client Management
+
+OpenCBS Cloud supports three types of client profiles with comprehensive data management and tracking capabilities.
+
+### Profile Types
+
+The system manages three distinct client types through a single-table inheritance model:
+
+```java
+@Entity
+@Table(name = "profiles")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "[type]", discriminatorType = DiscriminatorType.STRING)
+public class Profile extends CreationInfoEntity implements NamedEntity {
+    
+    @Column(name = "[type]", nullable = false)
+    private String type;
+    
+    @Column(name = "[name]", nullable = false)
+    private String name;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private EntityStatus status;
+    
+    @ManyToOne
+    @JoinColumn(name = "branch_id", nullable = false)
+    private Branch branch;
+}
+```
+
+<Accordion title="Supported Profile Types">
+  - **People** - Individual clients with personal information
+  - **Companies** - Corporate entities with business details
+  - **Groups** - Group lending structures with multiple members
+</Accordion>
+
+### Key Capabilities
+
+- Profile status tracking (Active, Pending, Closed)
+- Branch assignment for multi-location operations
+- Custom field support for institution-specific data
+- Attachment management for documents
+- Audit trail for all profile changes
+
+## Loan Management
+
+Comprehensive loan management from application through disbursement to repayment, supporting both individual and group lending.
+
+### Loan Application Process
+
+Group loans are handled through dedicated controllers:
+
+```java
+@RestController
+@RequestMapping(value = "/api/group-loans")
+public class GroupLoanController extends BaseController {
+    
+    @GetMapping(value = "/{loanApplicationId}")
+    public LoanDto get(@PathVariable long loanApplicationId) {
+        LoanApplication loanApplication = this.getLoanApplication(loanApplicationId);
+        String groupTypeOfProfile = Group.class.getAnnotation(DiscriminatorValue.class).value();
+        
+        if(!loanApplication.getProfile().getType().equals(groupTypeOfProfile)) {
+            throw new RuntimeException(
+                String.format("Loan application with (ID=%d) not for group loan", loanApplicationId)
+            );
+        }
+        return this.loanWorker.getConsolidatedLoansByLoanApplication(loanApplication);
+    }
+}
+```
+
+### Schedule Generation
+
+Automated loan schedule generation with flexible repayment terms:
+
+```java
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class LoanScheduleInstallment extends Installment {
+    private BigDecimal accruedInterest;
+    private BigDecimal paidInterest;
+    private BigDecimal paidPrincipal;
+}
+```
+
+<Steps>
+  <Step title="Application Creation">
+    Capture loan application details including amount, term, and purpose
+  </Step>
+  <Step title="Credit Committee Review">
+    Route applications through approval workflows with maker-checker controls
+  </Step>
+  <Step title="Schedule Generation">
+    Automatically generate repayment schedules based on product configuration
+  </Step>
+  <Step title="Disbursement">
+    Process loan disbursement with integrated accounting entries
+  </Step>
+  <Step title="Repayment Tracking">
+    Track payments, manage arrears, and calculate interest accruals
+  </Step>
+</Steps>
+
+### Features
+
+<CardGroup cols={2}>
+  <Card title="Individual Loans">
+    Standard lending to individual borrowers
+  </Card>
+  <Card title="Group Loans">
+    Solidarity group lending with joint liability
+  </Card>
+  <Card title="Flexible Products">
+    Configurable loan products with custom terms
+  </Card>
+  <Card title="Portfolio Tracking">
+    Real-time portfolio analysis and reporting
+  </Card>
+</CardGroup>
+
+## Collateral Management
+
+Track and manage loan collateral with flexible typing and valuation.
+
+```java
+@Entity
+@Table(name = "collaterals")
+public class Collateral extends BaseEntity {
+    
+    @Column(name = "name", nullable = false)
+    private String name;
+    
+    @Column(name = "amount", precision = 14, scale = 4)
+    private BigDecimal amount;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_application_id")
+    private LoanApplication loanApplication;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "type_of_collateral_id", nullable = false)
+    private TypeOfCollateral typeOfCollateral;
+    
+    @OneToMany(mappedBy = "collateral", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    private List<CollateralCustomFieldValue> customFieldValues = new ArrayList<>();
+}
+```
+
+<Note>
+Collateral supports custom fields, enabling institutions to capture property-specific information like land titles, vehicle registration numbers, or jewelry descriptions.
+</Note>
+
+## Savings Management
+
+Full-featured savings account management with product-based configuration.
+
+### Account Structure
+
+```java
+@Entity
+@Table(name = "savings_accounts")
+public class SavingAccount extends BaseSavingAccount {
+    
+    @Column(name = "saving_id", insertable = false, updatable = false)
+    private Long savingId;
+    
+    @ManyToOne
+    @JoinColumn(name = "saving_id", nullable = false)
+    private Saving saving;
+}
+```
+
+### Capabilities
+
+- Individual and group savings accounts
+- Interest calculation and accrual
+- Deposit and withdrawal transactions
+- Minimum balance enforcement
+- Dormancy management
+
+## Term Deposits
+
+Fixed-term deposit accounts with scheduled maturity and interest.
+
+<Accordion title="Term Deposit Features">
+  - Fixed and variable interest rates
+  - Automatic renewal options
+  - Early withdrawal penalties
+  - Interest accrual automation
+  - Maturity notifications
+</Accordion>
+
+## Custom Fields
+
+Extend standard entities with institution-specific data fields.
+
+```java
+@MappedSuperclass
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+public abstract class CustomField<Tcfs extends CustomFieldSection> extends BaseEntity {
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "section_id")
+    Tcfs section;
+    
+    @Column(name = "field_type", nullable = false)
+    @Enumerated(value = EnumType.STRING)
+    private CustomFieldType fieldType;
+    
+    @Column(name = "caption", nullable = false)
+    private String caption;
+    
+    @Column(name = "is_required", nullable = false)
+    private boolean required;
+    
+    @Column(name = "[order]", nullable = false)
+    private int order;
+}
+```
+
+### Supported Field Types
+
+- Text (short and long)
+- Numeric (integer and decimal)
+- Date and DateTime
+- Lookup lists
+- Yes/No (boolean)
+
+<Note>
+Custom fields can be added to profiles, loans, savings, collateral, and other entities without code changes.
+</Note>
+
+## Accounting
+
+Complete double-entry accounting system with automated journal entries.
+
+### Chart of Accounts
+
+Hierarchical account structure with nested sub-accounts:
+
+```java
+@Entity
+@Table(name = "accounts")
+public class Account extends NamedBaseEntity implements NamedEntity {
+    
+    @Column(name = "number", nullable = false)
+    private String number;
+    
+    @Column(name = "is_debit", nullable = false)
+    private Boolean isDebit;
+    
+    @Column(name = "lft")
+    private Integer lft;
+    
+    @Column(name = "rgt")
+    private Integer rgt;
+    
+    @Column(name = "type")
+    private AccountType type;
+    
+    @ManyToOne
+    @JoinColumn(name = "currency_id")
+    private Currency currency;
+    
+    @ManyToOne
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Account parent;
+}
+```
+
+### Features
+
+<CardGroup cols={2}>
+  <Card title="Automated Entries">
+    Automatic journal entries for all financial transactions
+  </Card>
+  <Card title="Multi-Currency">
+    Support for multiple currencies with exchange rates
+  </Card>
+  <Card title="Branch Accounting">
+    Separate accounting by branch location
+  </Card>
+  <Card title="Real-time Balances">
+    Instant balance calculation and reporting
+  </Card>
+</CardGroup>
+
+<Warning>
+Account operations (transfers, deposits, withdrawals) can be controlled at the account level through permission flags.
+</Warning>
+
+## Reports
+
+Comprehensive reporting system with multiple output formats.
+
+### Report Types
+
+The system includes audit reports, financial reports, and operational reports:
+
+- **Audit Reports** - User sessions, business object changes, transactions
+- **Financial Reports** - Trial balance, income statement, balance sheet
+- **Portfolio Reports** - Loan aging, portfolio at risk, collection reports
+- **Excel Reports** - Customizable Excel-based reports
+
+### Export Formats
+
+- PDF (using JasperReports)
+- Excel (XLS/XLSX)
+- CSV for data analysis
+
+## Additional Features
+
+<Accordion title="Teller Management">
+  - Cash drawer management
+  - Vault operations
+  - Till balancing and reconciliation
+  - Multi-currency till support
+</Accordion>
+
+<Accordion title="Borrowings and Bonds">
+  - Institutional borrowing tracking
+  - Bond issuance and management
+  - Interest accrual and payment
+  - Repayment scheduling
+</Accordion>
+
+<Accordion title="Maker-Checker Workflow">
+  - Dual authorization for sensitive operations
+  - Configurable approval workflows
+  - Audit trail for all approvals
+  - Role-based permissions
+</Accordion>
+
+<Accordion title="Multi-Branch Operations">
+  - Centralized management across branches
+  - Branch-specific configuration
+  - Inter-branch transfers
+  - Consolidated and branch-level reporting
+</Accordion>
+
+## Technology Highlights
+
+<Tabs>
+  <Tab title="Security">
+    - JWT-based authentication
+    - Stateless session management
+    - Role-based access control
+    - API endpoint protection
+  </Tab>
+  <Tab title="Audit">
+    - Hibernate Envers for entity versioning
+    - Complete audit trail for all changes
+    - User action logging
+    - Transaction history
+  </Tab>
+  <Tab title="Integration">
+    - RESTful API architecture
+    - Swagger/OpenAPI documentation
+    - Webhook support via RabbitMQ
+    - External system integration
+  </Tab>
+</Tabs>

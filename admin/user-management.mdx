@@ -1,0 +1,252 @@
+---
+title: User Management
+description: Manage users, roles, and access control in OpenCBS Cloud
+---
+
+## Overview
+
+User management in OpenCBS allows you to create and manage system users, assign roles, and control access to different features. All users must be assigned to a branch and a role.
+
+## User Structure
+
+Each user in OpenCBS has the following properties:
+
+<ParamField path="username" type="string" required>
+  Unique username for login (alphanumeric only, max 50 characters)
+</ParamField>
+
+<ParamField path="firstName" type="string" required>
+  User's first name (max 250 characters)
+</ParamField>
+
+<ParamField path="lastName" type="string" required>
+  User's last name (max 250 characters)
+</ParamField>
+
+<ParamField path="email" type="string" required>
+  Valid email address (max 250 characters)
+</ParamField>
+
+<ParamField path="phoneNumber" type="string" required>
+  Contact phone number (can include +, -, (), max 250 characters)
+</ParamField>
+
+<ParamField path="roleId" type="long" required>
+  ID of the role to assign to the user
+</ParamField>
+
+<ParamField path="branchId" type="integer" required>
+  ID of the branch the user belongs to
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  Password for the user account (must meet password policy requirements)
+</ParamField>
+
+<ParamField path="idNumber" type="string">
+  User's identification number
+</ParamField>
+
+<ParamField path="address" type="string">
+  User's address
+</ParamField>
+
+<ParamField path="position" type="string">
+  Job title or position
+</ParamField>
+
+<ParamField path="timeZoneName" type="string">
+  User's timezone (defaults to "Asia/Bishkek")
+</ParamField>
+
+<ParamField path="statusType" type="enum">
+  User status: `ACTIVE` or `INACTIVE` (default: `ACTIVE`)
+</ParamField>
+
+## Creating a User
+
+<Steps>
+  <Step title="Prepare User Data">
+    Ensure you have all required information including a valid role ID and branch ID.
+  </Step>
+  
+  <Step title="Submit User Creation Request">
+    User creation follows the maker-checker workflow. Submit a `POST` request to `/api/users` with the user details.
+    
+    ```json
+    {
+      "username": "jdoe",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.doe@example.com",
+      "phoneNumber": "+1234567890",
+      "roleId": 2,
+      "branchId": 1,
+      "password": "SecurePassword123",
+      "position": "Loan Officer"
+    }
+    ```
+  </Step>
+  
+  <Step title="Approve the Request">
+    The request must be approved by a checker before the user is created.
+  </Step>
+</Steps>
+
+<Warning>
+  User creation requires the `MAKER_FOR_USER` permission. All changes go through the maker-checker approval process.
+</Warning>
+
+## Password Requirements
+
+Passwords must meet the following criteria based on system settings:
+
+- **Minimum Length**: Configurable via `PASSWORD_LENGTH` system setting
+- **Upper Case**: Must contain at least one uppercase letter if `UPPER_CASE` setting is enabled
+- **Numbers**: Must contain at least one digit if `NUMBERS` setting is enabled
+
+<Note>
+  Password policies are enforced through system settings and can be configured by administrators.
+</Note>
+
+## Updating a User
+
+<Steps>
+  <Step title="Get User Details">
+    Retrieve the current user information via `GET /api/users/{id}`
+  </Step>
+  
+  <Step title="Submit Update Request">
+    Submit a `PUT` request to `/api/users/{id}` with the updated user data.
+  </Step>
+  
+  <Step title="Approve Changes">
+    Updates follow the maker-checker workflow and require approval.
+  </Step>
+</Steps>
+
+<Warning>
+  You cannot update the system admin user (ID=1). Updates require the `MAKER_FOR_USER` permission.
+</Warning>
+
+## User Roles
+
+Every user must be assigned a role that determines their permissions. See the [Permissions](/admin/permissions) page for more details on role-based access control.
+
+Key role characteristics:
+- Roles cannot be system roles
+- Each role has a set of associated permissions
+- Users inherit all permissions from their assigned role
+
+## Viewing Users
+
+### Get All Users
+
+```bash
+GET /api/users
+```
+
+Query parameters:
+- `show_all`: Boolean (default: `false`) - Include inactive users
+
+### Get User by ID
+
+```bash
+GET /api/users/{id}
+```
+
+### Get Current User
+
+```bash
+GET /api/users/current
+```
+
+Returns the authenticated user's details.
+
+### User Lookup
+
+```bash
+GET /api/users/lookup
+```
+
+Query parameters:
+- `branchId`: Filter by branch
+- `search`: Search string
+- `show_all`: Include inactive users
+- `page`, `size`, `sort`: Pagination parameters
+
+## Special User Types
+
+### Tellers
+
+The system recognizes two special user roles:
+- `TELLER`: Standard teller user
+- `HEAD_TELLER`: Head teller with additional privileges
+
+Retrieve all tellers:
+```bash
+GET /api/users/tellers?search={searchString}&page=0&size=20
+```
+
+## Password Management
+
+Users can update their own password using the password update endpoint:
+
+```bash
+PUT /api/users/update-password
+```
+
+```json
+{
+  "userId": 123,
+  "password": "NewSecurePassword123"
+}
+```
+
+<Warning>
+  Users can only change their own password. The new password must meet all password policy requirements.
+</Warning>
+
+## User History & Audit
+
+OpenCBS maintains a complete audit trail of all user changes.
+
+### Get User History
+
+```bash
+GET /api/users/{id}/history
+```
+
+Returns all historical revisions of the user record.
+
+### Get Last Change
+
+```bash
+GET /api/users/{id}/history/last_change?dateTime=2024-03-14T10:00:00
+```
+
+Returns the most recent change before the specified datetime.
+
+## User Status
+
+Users can have the following status types:
+- `ACTIVE`: User can log in and access the system
+- `INACTIVE`: User is disabled and cannot log in
+
+## Related API Endpoints
+
+| Endpoint | Method | Description | Permission Required |
+|----------|--------|-------------|--------------------|
+| `/api/users` | GET | List all users | - |
+| `/api/users/{id}` | GET | Get user by ID | - |
+| `/api/users/current` | GET | Get current user | - |
+| `/api/users` | POST | Create user | `MAKER_FOR_USER` |
+| `/api/users/{id}` | PUT | Update user | `MAKER_FOR_USER` |
+| `/api/users/update-password` | PUT | Update password | - |
+| `/api/users/{id}/history` | GET | Get user history | - |
+| `/api/users/lookup` | GET | User lookup with filters | - |
+| `/api/users/tellers` | GET | Get all tellers | - |
+
+<Note>
+  All user modifications (create, update) require maker-checker approval and cannot be completed immediately.
+</Note>

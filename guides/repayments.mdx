@@ -1,0 +1,363 @@
+---
+title: Processing Loan Repayments
+description: Complete guide to recording and managing loan repayments in OpenCBS Cloud
+---
+
+Loan repayments are the core transaction in any lending operation. This guide covers how to accurately record and manage loan payments in OpenCBS Cloud.
+
+## Prerequisites
+
+Before processing repayments:
+
+- Loan must be in ACTIVE status (disbursed)
+- User must have REPAYMENT permissions
+- Payment method must be configured
+- For past-dated repayments: PAST_REPAYMENTS permission required
+
+## Processing a Repayment
+
+<Steps>
+  <Step title="Access the Loan">
+    Navigate to the active loan:
+    - Search for the loan or client profile
+    - Open the loan details page
+    - Click on the **Repayment** or **Operations** button
+  </Step>
+
+  <Step title="Enter Repayment Details">
+    Complete the repayment form:
+
+    ### Repayment Date
+    - Defaults to current date
+    - Can be changed if you have PAST_REPAYMENTS permission
+    - System validates against last actualization date
+
+    <Note>
+      If the repayment date differs from the last actualization date, you'll see a warning. Consider actualizing the loan first for accurate interest calculation.
+    </Note>
+
+    ### Payment Method
+    Select from configured payment methods:
+    - Cash
+    - Bank transfer
+    - Check
+    - Mobile money
+    - Other institution-specific methods
+
+    API endpoint for payment methods:
+    ```
+    GET /payment-methods/lookup
+    ```
+  </Step>
+
+  <Step title="Select Repayment Type">
+    Choose the appropriate repayment type:
+
+    **NORMAL_REPAYMENT**
+    - Standard scheduled payment
+    - Applies to fees, interest, and principal in order
+    - Most common repayment type
+
+    **EARLY_TOTAL_REPAYMENT**
+    - Full loan payoff before maturity
+    - Includes early repayment fee (if applicable)
+    - Closes the loan upon completion
+
+    **EARLY_PARTIAL_REPAYMENT**
+    - Extra payment toward principal
+    - May adjust future installments
+    - Early repayment fees may apply
+
+    Other types may include:
+    - Interest only
+    - Principal only
+    - Penalty payment
+  </Step>
+
+  <Step title="Enter Payment Amount">
+    Specify the payment amount:
+
+    ### Total Amount
+    - Enter the total payment received
+    - System auto-calculates breakdown
+    - Or use "Set Max Amount" for full payment
+
+    ### Manual Breakdown (Optional)
+    For specific repayment types, you can manually specify:
+    - Principal amount
+    - Interest amount
+    - Penalty amount
+    - Fees amount
+
+    <Tip>
+      The system automatically validates amounts against outstanding balances and prevents over-payment.
+    </Tip>
+  </Step>
+
+  <Step title="Review Calculation">
+    The form displays the payment breakdown:
+    - **Penalty**: Any late payment penalties
+    - **Interest**: Interest portion of payment
+    - **Principal**: Principal reduction
+    - **Early Repayment Fee**: If applicable
+    - **Total**: Total payment amount
+
+    Verify amounts are correct before submitting.
+  </Step>
+
+  <Step title="Submit Repayment">
+    Click **Submit** to record the payment:
+    - System validates all amounts
+    - Creates payment transaction
+    - Updates loan schedule
+    - Recalculates outstanding balance
+  </Step>
+
+  <Step title="Confirmation">
+    Upon successful processing:
+    - Payment confirmation displayed
+    - Updated loan balance shown
+    - Schedule updated with payment
+    - Transaction recorded in loan history
+  </Step>
+</Steps>
+
+## Repayment Application Order
+
+Payments are applied in the following order:
+
+1. **Penalties and Fees** - Late fees, penalty charges
+2. **Accrued Interest** - Interest accumulated since last payment
+3. **Principal** - Outstanding loan principal
+
+This order ensures fees and interest are collected first before reducing principal.
+
+<Note>
+  The application order may be configured differently based on your institution's policies and loan product settings.
+</Note>
+
+## Actualization and Interest Accrual
+
+### Last Actualization Date
+
+The system tracks the last date interest was calculated:
+
+- Displayed on the repayment form
+- Should typically match the repayment date
+- Warning shown if dates differ significantly
+
+### Actualizing Before Repayment
+
+To ensure accurate interest calculation:
+
+1. Check the last actualization date
+2. If outdated, actualize the loan first
+3. Then process the repayment
+
+This ensures interest is correctly calculated for the exact number of days.
+
+## Partial Payments
+
+When payment is less than the full installment:
+
+- Payment applied per application order (fees → interest → principal)
+- Installment marked as partially paid
+- Remaining balance carried forward
+- May affect subsequent installments
+- Additional charges may accrue on unpaid balance
+
+## Late Payments and Penalties
+
+### Automatic Penalty Calculation
+
+When payments are overdue:
+- System calculates penalty based on:
+  - Days overdue
+  - Penalty rate (from loan product)
+  - Outstanding amount
+- Penalty automatically added to repayment amount
+
+### Manual Penalty Adjustment
+
+With appropriate permissions:
+- Waive penalties
+- Adjust penalty amounts
+- Write off penalties
+- Reschedule to eliminate penalties
+
+## Early Repayment
+
+### Early Total Repayment
+
+To pay off a loan early:
+
+1. Select repayment type: **EARLY_TOTAL_REPAYMENT**
+2. System calculates:
+   - Outstanding principal
+   - Accrued interest to date
+   - Early repayment fee (if configured)
+3. Enter total amount
+4. Submit to close loan
+
+### Early Repayment Fees
+
+Some loan products charge fees for early payoff:
+- Percentage of remaining principal
+- Flat fee amount
+- Calculated number of months' interest
+
+Early repayment fee is displayed in the repayment form.
+
+## Maker-Checker for Repayments
+
+<Note>
+  If maker-checker workflow is enabled for repayments, the payment will require approval from an authorized checker before being finalized.
+</Note>
+
+Maker-checker workflow:
+1. **Maker** enters repayment details
+2. Repayment enters pending approval
+3. **Checker** reviews and approves
+4. Payment finalized upon approval
+
+API endpoint:
+```
+GET /loans/maker-checker/repayment
+```
+
+## Past-Dated Repayments
+
+### Recording Historical Payments
+
+With PAST_REPAYMENTS permission:
+
+- Change the repayment date to a past date
+- System recalculates interest for historical date
+- Useful for recording payments received offline
+- Helps reconcile payment records
+
+<Tip>
+  When entering past-dated repayments, enter them in chronological order to ensure accurate interest calculations.
+</Tip>
+
+## Payment Methods Configuration
+
+Payment methods are configured system-wide:
+
+```
+GET /payment-methods/lookup
+```
+
+Each method can have:
+- Display name
+- Internal code
+- Active/inactive status
+- Additional validation rules
+
+## Viewing Repayment History
+
+Access complete payment history:
+
+### On Loan Page
+- **Transactions** tab shows all payments
+- Each transaction displays:
+  - Date
+  - Amount
+  - Payment method
+  - Breakdown (principal, interest, fees)
+  - User who recorded payment
+
+### Through API
+
+Retrieve loan events including repayments:
+```
+GET /loans/{id}/events
+```
+
+## Repayment Receipts
+
+Generate payment receipts:
+- Print receipt after payment
+- Include transaction details
+- Show updated loan balance
+- Official documentation for client
+
+## Reversing Repayments
+
+To reverse an incorrect payment:
+
+1. Requires ROLLBACK permission
+2. Access loan operations
+3. Select repayment to reverse
+4. Provide reason for reversal
+5. Submit rollback request
+
+<Note>
+  Rollbacks may require maker-checker approval. Only recent transactions can typically be reversed.
+</Note>
+
+API endpoint:
+```
+GET /loans/maker-checker/rollback
+```
+
+## Bulk Repayment Processing
+
+For institutions processing many payments:
+
+- Use bulk upload features
+- CSV/Excel import
+- Validate before posting
+- Process in batch
+- Generate exception reports
+
+## Integration with Teller Operations
+
+Repayments are often processed through teller/cashier operations:
+
+- [See Teller Operations guide](/guides/teller-operations) for details
+- Tellers process cash repayments
+- Integrated with vault/till management
+- Automatic cash accounting
+
+## Best Practices
+
+<Tip>
+  **Repayment Processing Tips**
+  - Always verify the client and loan number before processing
+  - Confirm the payment amount with the client
+  - Check last actualization date and actualize if needed
+  - Select the correct payment method for accurate reporting
+  - Issue receipt to client immediately
+  - For large amounts, consider maker-checker verification
+  - Record cash payments immediately to prevent discrepancies
+  - Document any partial payments or special arrangements
+</Tip>
+
+## Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| Cannot edit repayment date | Need PAST_REPAYMENTS permission |
+| Amount fields disabled | Change repayment type or edit total amount |
+| Actualization warning | Actualize loan first, then process repayment |
+| Payment exceeds balance | Verify amount; use "set max" for exact payoff |
+| Early repayment fee unexpected | Check loan product configuration |
+| Cannot submit | Verify all required fields completed |
+
+## Reporting and Reconciliation
+
+Repayments affect various reports:
+
+- Cash flow reports
+- Portfolio at risk
+- Collection efficiency
+- Outstanding loan balance reports
+- [See Reports guide](/guides/reports) for details
+
+## Next Steps
+
+- [View updated loan schedule](/guides/loan-schedule)
+- [Generate repayment reports](/guides/reports)
+- Process next client transaction
+- Reconcile daily cash transactions

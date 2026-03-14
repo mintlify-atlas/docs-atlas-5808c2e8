@@ -1,0 +1,694 @@
+---
+title: "Loans API"
+description: "Manage loan accounts, schedules, events, and operations"
+---
+
+The Loans API provides endpoints to manage active loan accounts, including retrieving loan details, viewing schedules, processing operations like write-offs, and managing loan events.
+
+## Get All Loans
+
+<Expandable title="GET /api/loans">
+  <ParamField query="search" type="string">
+    Search term to filter loans by borrower name, loan code, or other criteria
+  </ParamField>
+
+  <ParamField query="page" type="integer">
+    Page number for pagination (0-indexed)
+  </ParamField>
+
+  <ParamField query="size" type="integer">
+    Number of results per page
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="content" type="array">
+    Array of simplified loan objects
+    
+    <Expandable title="Loan Object">
+      <ResponseField name="id" type="long">
+        Unique loan identifier
+      </ResponseField>
+
+      <ResponseField name="code" type="string">
+        Loan account code
+      </ResponseField>
+
+      <ResponseField name="profile" type="object">
+        Borrower profile information
+      </ResponseField>
+
+      <ResponseField name="amount" type="decimal">
+        Loan principal amount
+      </ResponseField>
+
+      <ResponseField name="interestRate" type="decimal">
+        Annual interest rate percentage
+      </ResponseField>
+
+      <ResponseField name="status" type="string">
+        Current loan status (ACTIVE, CLOSED, WRITTEN_OFF, etc.)
+      </ResponseField>
+
+      <ResponseField name="maturityDate" type="string">
+        Loan maturity date in ISO format
+      </ResponseField>
+
+      <ResponseField name="loanOfficer" type="object">
+        Assigned loan officer details
+      </ResponseField>
+
+      <ResponseField name="loanProductName" type="string">
+        Name of the loan product
+      </ResponseField>
+    </Expandable>
+  </ResponseField>
+
+  <ResponseField name="totalElements" type="long">
+    Total number of loans matching the query
+  </ResponseField>
+
+  <ResponseField name="totalPages" type="integer">
+    Total number of pages
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loans?search=John&page=0&size=20" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loans?search=John&page=0&size=20', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const loans = await response.json();
+  ```
+
+  ```python Python
+  import requests
+
+  response = requests.get(
+    'https://api.opencbs.com/api/loans',
+    params={'search': 'John', 'page': 0, 'size': 20},
+    headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+  )
+  loans = response.json()
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Loan by ID
+
+<Expandable title="GET /api/loans/{id}">
+  <ParamField path="id" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="id" type="long">
+    Loan identifier
+  </ResponseField>
+
+  <ResponseField name="code" type="string">
+    Loan account code
+  </ResponseField>
+
+  <ResponseField name="amount" type="decimal">
+    Loan principal amount
+  </ResponseField>
+
+  <ResponseField name="loanApplicationId" type="long">
+    Associated loan application ID
+  </ResponseField>
+
+  <ResponseField name="profile" type="object">
+    Complete borrower profile details
+  </ResponseField>
+
+  <ResponseField name="loanAdditionalInfoEntity" type="object">
+    Additional loan information and metadata
+  </ResponseField>
+
+  <ResponseField name="loanOfficer" type="object">
+    Loan officer assigned to this account
+  </ResponseField>
+
+  <ResponseField name="interestRate" type="decimal">
+    Annual interest rate
+  </ResponseField>
+
+  <ResponseField name="maturity" type="integer">
+    Loan term in days or months (depends on schedule type)
+  </ResponseField>
+
+  <ResponseField name="gracePeriod" type="integer">
+    Grace period duration
+  </ResponseField>
+
+  <ResponseField name="scheduleType" type="string">
+    Schedule generation type (ANNUITY, FLAT, DECLINING_BALANCE, etc.)
+  </ResponseField>
+
+  <ResponseField name="status" type="string">
+    Current loan status
+  </ResponseField>
+
+  <ResponseField name="installments" type="object">
+    Loan repayment schedule
+  </ResponseField>
+
+  <ResponseField name="isReadOnly" type="boolean">
+    Whether the loan can be modified
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loans/12345" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loans/12345', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const loan = await response.json();
+  ```
+
+  ```python Python
+  import requests
+
+  response = requests.get(
+    'https://api.opencbs.com/api/loans/12345',
+    headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+  )
+  loan = response.json()
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Loans by Profile
+
+<Expandable title="GET /api/loans/by-profile/{profileId}">
+  Retrieve all loans for a specific borrower profile.
+
+  <ParamField path="profileId" type="long" required>
+    Profile (borrower) identifier
+  </ParamField>
+
+  <ParamField query="page" type="integer">
+    Page number for pagination
+  </ParamField>
+
+  <ParamField query="size" type="integer">
+    Number of results per page
+  </ParamField>
+
+  **Response**: Paginated list of loans with the same structure as Get All Loans.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loans/by-profile/789" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loans/by-profile/789', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const loans = await response.json();
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Loan Schedule
+
+<Expandable title="GET /api/loans/{loanId}/schedule">
+  Retrieve the complete repayment schedule for a loan.
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="columns" type="array">
+    Column definitions for the schedule
+  </ResponseField>
+
+  <ResponseField name="rows" type="array">
+    Schedule installments
+    
+    <Expandable title="Installment Object">
+      <ResponseField name="number" type="integer">
+        Installment number
+      </ResponseField>
+
+      <ResponseField name="maturityDate" type="date">
+        Due date for this installment
+      </ResponseField>
+
+      <ResponseField name="principal" type="decimal">
+        Principal amount due
+      </ResponseField>
+
+      <ResponseField name="interest" type="decimal">
+        Interest amount due
+      </ResponseField>
+
+      <ResponseField name="totalDue" type="decimal">
+        Total payment due
+      </ResponseField>
+
+      <ResponseField name="paidPrincipal" type="decimal">
+        Principal amount paid
+      </ResponseField>
+
+      <ResponseField name="paidInterest" type="decimal">
+        Interest amount paid
+      </ResponseField>
+
+      <ResponseField name="olb" type="decimal">
+        Outstanding loan balance after this payment
+      </ResponseField>
+    </Expandable>
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loans/12345/schedule" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loans/12345/schedule', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const schedule = await response.json();
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Loan Events
+
+<Expandable title="GET /api/loans/{loanId}/events">
+  Retrieve all accounting events for a loan (disbursements, repayments, accruals, etc.).
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField query="fromDate" type="date">
+    Filter events from this date
+  </ParamField>
+
+  <ParamField query="toDate" type="date">
+    Filter events to this date
+  </ParamField>
+
+  **Response**: Array of loan events
+
+  <ResponseField name="id" type="long">
+    Event identifier
+  </ResponseField>
+
+  <ResponseField name="eventType" type="string">
+    Type of event (DISBURSEMENT, REPAYMENT, ACCRUAL_OF_INTEREST, WRITE_OFF, etc.)
+  </ResponseField>
+
+  <ResponseField name="amount" type="decimal">
+    Event amount
+  </ResponseField>
+
+  <ResponseField name="effectiveAt" type="datetime">
+    Effective date and time of the event
+  </ResponseField>
+
+  <ResponseField name="createdAt" type="datetime">
+    When the event was created
+  </ResponseField>
+
+  <ResponseField name="createdBy" type="object">
+    User who created the event
+  </ResponseField>
+
+  <ResponseField name="groupKey" type="long">
+    Groups related events together (e.g., all accounting entries for one repayment)
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loans/12345/events" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loans/12345/events', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const events = await response.json();
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Consolidated Loan Events
+
+<Expandable title="GET /api/loans/{loanId}/events/group">
+  Retrieve loan events consolidated by group key (summarizes related accounting entries).
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField query="fromDate" type="date">
+    Filter events from this date
+  </ParamField>
+
+  <ParamField query="toDate" type="date">
+    Filter events to this date
+  </ParamField>
+
+  **Response**: Array of consolidated loan events with the same structure as Get Loan Events.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loans/12345/events/group" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Events by Group Key
+
+<Expandable title="GET /api/loans/{loanId}/events/{groupKey}">
+  Retrieve all events belonging to a specific group (e.g., all accounting entries for a single transaction).
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField path="groupKey" type="long" required>
+    Event group identifier
+  </ParamField>
+
+  **Response**: Array of related loan events.
+</Expandable>
+
+## Write Off Loan
+
+<Expandable title="POST /api/loans/{loanId}/write-off">
+  Write off a loan account (marks non-recoverable debt).
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  **Request Body**
+
+  <ParamField body="date" type="datetime" required>
+    Effective date and time of the write-off
+  </ParamField>
+
+  <ParamField body="comment" type="string">
+    Reason or notes for the write-off
+  </ParamField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loans/12345/write-off" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "date": "2024-03-15T10:00:00",
+      "comment": "Borrower bankruptcy"
+    }'
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loans/12345/write-off', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      date: '2024-03-15T10:00:00',
+      comment: 'Borrower bankruptcy'
+    })
+  });
+  ```
+
+  ```python Python
+  import requests
+
+  response = requests.post(
+    'https://api.opencbs.com/api/loans/12345/write-off',
+    headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'},
+    json={
+      'date': '2024-03-15T10:00:00',
+      'comment': 'Borrower bankruptcy'
+    }
+  )
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Calculate Write-Off Amount
+
+<Expandable title="POST /api/loans/{loanId}/write-off/calculate">
+  Calculate the amount that would be written off without actually performing the write-off.
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  **Request Body**
+
+  <ParamField body="date" type="datetime" required>
+    Effective date for calculation
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="principal" type="decimal">
+    Principal amount to be written off
+  </ResponseField>
+
+  <ResponseField name="interest" type="decimal">
+    Interest amount to be written off
+  </ResponseField>
+
+  <ResponseField name="penalty" type="decimal">
+    Penalty amount to be written off
+  </ResponseField>
+
+  <ResponseField name="total" type="decimal">
+    Total write-off amount
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loans/12345/write-off/calculate" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"date": "2024-03-15T10:00:00"}'
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Actualize Loan
+
+<Expandable title="POST /api/loans/actualize/{loanId}">
+  Process accruals and updates for a loan up to a specific date.
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField query="date" type="date" required>
+    Date to actualize the loan to (format: YYYY-MM-DD)
+  </ParamField>
+
+  **Response**: Success message indicating actualization has started.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loans/actualize/12345?date=2024-03-15" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Roll Back Loan
+
+<Expandable title="POST /api/loans/{loanId}/roll-back">
+  Create a maker-checker request to roll back loan events to a specific date.
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  **Request Body**
+
+  <ParamField body="date" type="date" required>
+    Date to roll back to
+  </ParamField>
+
+  <ParamField body="comment" type="string">
+    Reason for rollback
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="id" type="long">
+    Maker-checker request ID (requires approval)
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loans/12345/roll-back" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"date": "2024-03-01", "comment": "Incorrect repayment recorded"}'
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Reassign Loan Officer
+
+<Expandable title="POST /api/loans/{loanId}/reassign-loan-officer/{loanOfficerId}">
+  Reassign a loan to a different loan officer.
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField path="loanOfficerId" type="long" required>
+    New loan officer user ID
+  </ParamField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loans/12345/reassign-loan-officer/67" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  await fetch('https://api.opencbs.com/api/loans/12345/reassign-loan-officer/67', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Specific Provision Operations
+
+<Expandable title="Provisioning Endpoints">
+  Manage loan loss provisions for specific loans.
+
+  ### Get Provision Information
+  
+  **GET /api/loans/{loanId}/specific-provision/{provisionType}**
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField path="provisionType" type="string" required>
+    Type of provision (MANUAL or AUTOMATIC)
+  </ParamField>
+
+  **Response**: Provision information including current reserve amount and percentage.
+
+  ### Recalculate Provision by Percent
+  
+  **GET /api/loans/{loanId}/recalculate-specific-provision/{value}/{provisionType}/by-percent**
+
+  Calculate the reserve amount based on a percentage.
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField path="value" type="decimal" required>
+    Provision percentage (e.g., 5.5 for 5.5%)
+  </ParamField>
+
+  <ParamField path="provisionType" type="string" required>
+    Type of provision
+  </ParamField>
+
+  **Response**: Calculated reserve amount
+
+  ### Recalculate Provision by Amount
+  
+  **GET /api/loans/{loanId}/recalculate-specific-provision/{value}/{provisionType}/by-amount**
+
+  Calculate the percentage based on a reserve amount.
+
+  <ParamField path="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField path="value" type="decimal" required>
+    Reserve amount
+  </ParamField>
+
+  <ParamField path="provisionType" type="string" required>
+    Type of provision
+  </ParamField>
+
+  **Response**: Calculated percentage
+
+  ### Apply Specific Provision
+  
+  **POST /api/loans/apply-specific-provision**
+
+  Apply a specific provision to a loan.
+
+  **Request Body**
+
+  <ParamField body="loanId" type="long" required>
+    Loan identifier
+  </ParamField>
+
+  <ParamField body="provisionType" type="string" required>
+    Type of provision
+  </ParamField>
+
+  <ParamField body="percent" type="decimal" required>
+    Provision percentage
+  </ParamField>
+
+  <ParamField body="amount" type="decimal" required>
+    Reserve amount
+  </ParamField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loans/apply-specific-provision" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "loanId": 12345,
+      "provisionType": "MANUAL",
+      "percent": 10.0,
+      "amount": 5000.00
+    }'
+  ```
+  </CodeGroup>
+</Expandable>

@@ -1,0 +1,431 @@
+---
+title: Configuration
+description: Configure OpenCBS Cloud database connections, application properties, and environment variables
+---
+
+# Configuration
+
+OpenCBS Cloud uses Spring Boot's configuration system and requires proper configuration of database connections, application settings, and environment-specific properties.
+
+## Application Structure
+
+OpenCBS Cloud follows a modular architecture:
+
+```
+opencbs-cloud/
+├── server/
+│   ├── opencbs-core/          # Core banking functionality
+│   ├── opencbs-loans/         # Loan management
+│   ├── opencbs-savings/       # Savings accounts
+│   ├── opencbs-borrowings/    # Borrowings module
+│   ├── opencbs-term-deposits/ # Term deposits
+│   ├── opencbs-bonds/         # Bonds management
+│   └── opencbs-server/        # Main application
+└── client/                     # Angular frontend
+```
+
+## Database Configuration
+
+OpenCBS Cloud uses PostgreSQL 9.4+ and Flyway 4.0.3 for database migrations.
+
+### Database Connection Properties
+
+Create or edit the application properties file for your environment. By default, Spring Boot looks for configuration in:
+
+- `application.properties`
+- `application.yml`
+- Environment-specific files like `application-dev.properties`, `application-prod.properties`
+
+<CodeGroup>
+  ```properties application.properties
+  # Database Configuration
+  spring.datasource.url=jdbc:postgresql://localhost:5432/opencbs_cloud
+  spring.datasource.username=opencbs_user
+  spring.datasource.password=your_secure_password
+  spring.datasource.driver-class-name=org.postgresql.Driver
+
+  # Connection Pool Settings
+  spring.datasource.hikari.maximum-pool-size=10
+  spring.datasource.hikari.minimum-idle=5
+  spring.datasource.hikari.connection-timeout=30000
+  spring.datasource.hikari.idle-timeout=600000
+  spring.datasource.hikari.max-lifetime=1800000
+
+  # JPA/Hibernate Configuration
+  spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+  spring.jpa.hibernate.ddl-auto=validate
+  spring.jpa.show-sql=false
+  spring.jpa.properties.hibernate.format_sql=true
+  spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
+
+  # Flyway Migration
+  spring.flyway.enabled=true
+  spring.flyway.baseline-on-migrate=true
+  spring.flyway.locations=classpath:db/migration/core,classpath:db/migration/loans,classpath:db/migration/savings,classpath:db/migration/borrowings,classpath:db/migration/bonds
+  ```
+
+  ```yaml application.yml
+  spring:
+    datasource:
+      url: jdbc:postgresql://localhost:5432/opencbs_cloud
+      username: opencbs_user
+      password: your_secure_password
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 5
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+    
+    jpa:
+      database-platform: org.hibernate.dialect.PostgreSQLDialect
+      hibernate:
+        ddl-auto: validate
+      show-sql: false
+      properties:
+        hibernate:
+          format_sql: true
+          jdbc:
+            lob:
+              non_contextual_creation: true
+    
+    flyway:
+      enabled: true
+      baseline-on-migrate: true
+      locations:
+        - classpath:db/migration/core
+        - classpath:db/migration/loans
+        - classpath:db/migration/savings
+        - classpath:db/migration/borrowings
+        - classpath:db/migration/bonds
+  ```
+</CodeGroup>
+
+<Warning>
+  Never commit sensitive credentials to version control. Use environment variables or external configuration for production deployments.
+</Warning>
+
+### Database Migrations
+
+OpenCBS Cloud uses Flyway for schema management. Migrations are located in:
+
+- **Core**: `server/opencbs-core/src/main/resources/db/migration/core/`
+- **Loans**: `server/opencbs-loans/src/main/resources/db/migration/loans/`
+- **Savings**: `server/opencbs-savings/src/main/resources/db/migration/savings/`
+- **Borrowings**: `server/opencbs-borrowings/src/main/resources/db/migration/borrowings/`
+- **Bonds**: `server/opencbs-bonds/src/main/resources/db/migration/bonds/`
+- **Term Deposits**: `server/opencbs-term-deposits/src/main/resources/db/migration/`
+
+<Note>
+  Flyway will automatically run all pending migrations when the application starts. Migrations are versioned (e.g., `V1__Create_users.sql`, `V2__Add_roles.sql`) and run in order.
+</Note>
+
+## Application Properties
+
+### Server Configuration
+
+<CodeGroup>
+  ```properties Server Settings
+  # Server Port
+  server.port=8080
+
+  # Context Path
+  server.servlet.context-path=/api
+
+  # Session Configuration
+  server.servlet.session.timeout=30m
+
+  # Compression
+  server.compression.enabled=true
+  server.compression.mime-types=application/json,application/xml,text/html,text/xml,text/plain
+  ```
+
+  ```properties Logging
+  # Logging Configuration
+  logging.level.root=INFO
+  logging.level.com.opencbs=DEBUG
+  logging.level.org.springframework.web=INFO
+  logging.level.org.hibernate=WARN
+  logging.level.org.hibernate.SQL=DEBUG
+  logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
+
+  # Log File
+  logging.file.name=logs/opencbs-cloud.log
+  logging.file.max-size=10MB
+  logging.file.max-history=30
+  ```
+</CodeGroup>
+
+### Security Configuration
+
+<CodeGroup>
+  ```properties JWT Configuration
+  # JWT Token Settings
+  jwt.secret=your-secret-key-change-this-in-production
+  jwt.expiration=86400000
+  # 24 hours in milliseconds
+
+  # CORS Configuration
+  cors.allowed-origins=http://localhost:4200,http://localhost:80
+  cors.allowed-methods=GET,POST,PUT,DELETE,OPTIONS
+  cors.allowed-headers=*
+  cors.allow-credentials=true
+  ```
+
+  ```properties Spring Security
+  # Security Settings
+  spring.security.user.name=admin
+  spring.security.user.password=change-me
+
+  # Authentication
+  security.basic.enabled=false
+  security.ignored=/**/swagger-ui.html,/**/webjars/**,/**/swagger-resources/**
+  ```
+</CodeGroup>
+
+<Warning>
+  Always change default passwords and JWT secrets in production environments. Use strong, randomly generated values.
+</Warning>
+
+### Mail Configuration
+
+OpenCBS Cloud includes email functionality for notifications:
+
+```properties
+# Mail Server Configuration
+spring.mail.host=smtp.example.com
+spring.mail.port=587
+spring.mail.username=your-email@example.com
+spring.mail.password=your-email-password
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+# Mail From Address
+mail.from=noreply@opencbs.com
+```
+
+### RabbitMQ Configuration (Optional)
+
+For asynchronous messaging and event processing:
+
+```properties
+# RabbitMQ Configuration
+spring.rabbitmq.host=localhost
+spring.rabbitmq.port=5672
+spring.rabbitmq.username=guest
+spring.rabbitmq.password=guest
+spring.rabbitmq.virtual-host=/
+```
+
+## Environment Variables
+
+For production deployments, use environment variables instead of hardcoded values:
+
+<CodeGroup>
+  ```bash Linux/macOS
+  export SPRING_DATASOURCE_URL=jdbc:postgresql://db-host:5432/opencbs_cloud
+  export SPRING_DATASOURCE_USERNAME=opencbs_user
+  export SPRING_DATASOURCE_PASSWORD=secure_password
+  export JWT_SECRET=your-production-jwt-secret
+  export SERVER_PORT=8080
+  ```
+
+  ```powershell Windows PowerShell
+  $env:SPRING_DATASOURCE_URL="jdbc:postgresql://db-host:5432/opencbs_cloud"
+  $env:SPRING_DATASOURCE_USERNAME="opencbs_user"
+  $env:SPRING_DATASOURCE_PASSWORD="secure_password"
+  $env:JWT_SECRET="your-production-jwt-secret"
+  $env:SERVER_PORT="8080"
+  ```
+
+  ```bash Docker
+  # Create .env file for Docker
+  SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/opencbs_cloud
+  SPRING_DATASOURCE_USERNAME=opencbs_user
+  SPRING_DATASOURCE_PASSWORD=secure_password
+  JWT_SECRET=your-production-jwt-secret
+  SERVER_PORT=8080
+  ```
+</CodeGroup>
+
+<Note>
+  Spring Boot automatically converts environment variables with underscores to property names with dots and lowercase. For example, `SPRING_DATASOURCE_URL` becomes `spring.datasource.url`.
+</Note>
+
+## Frontend Configuration
+
+The Angular client needs to know the backend API URL.
+
+### Development Configuration
+
+Edit `client/src/environments/environment.ts`:
+
+```typescript
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:8080/api'
+};
+```
+
+### Production Configuration
+
+Edit `client/src/environments/environment.prod.ts`:
+
+```typescript
+export const environment = {
+  production: true,
+  apiUrl: '/api'
+};
+```
+
+<Note>
+  In production, the Angular application is served by Nginx, which proxies API requests to the backend server. The `default.conf` file in the client directory configures this proxy.
+</Note>
+
+## Docker Configuration
+
+When deploying with Docker, configuration is handled through the Dockerfile and environment variables.
+
+### Server Dockerfile Configuration
+
+The server Dockerfile (`server/opencbs-server/Dockerfile`) uses:
+
+```dockerfile
+FROM java:8-jdk-alpine
+LABEL maintainer="Bektur Mambetov"
+WORKDIR /usr/app
+COPY ./target/*.jar /usr/app/cloud.jar
+COPY ./src/main/resources/application-docker.properties /usr/app/application.properties
+CMD ["/bin/sh", "-c", "java -jar /usr/app/cloud.jar -Djava.security.egd=file:/dev/./urandom -Dspring.config.location=/usr/app/application.properties"]
+```
+
+Create `application-docker.properties` with Docker-specific settings:
+
+```properties
+spring.datasource.url=jdbc:postgresql://postgres:5432/opencbs_cloud
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+server.port=8080
+```
+
+### Client Nginx Configuration
+
+The client uses Nginx (`client/default.conf`):
+
+```nginx
+upstream api_upstream {
+    server api:8080;
+}
+
+server {
+    listen 80;
+    server_name localhost;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+    }
+
+    location /api {
+        proxy_pass http://api_upstream;
+    }
+}
+```
+
+## Profile-Specific Configuration
+
+Spring Boot supports multiple profiles for different environments:
+
+<CodeGroup>
+  ```properties Development Profile
+  # application-dev.properties
+  spring.datasource.url=jdbc:postgresql://localhost:5432/opencbs_cloud_dev
+  spring.jpa.show-sql=true
+  logging.level.com.opencbs=DEBUG
+  ```
+
+  ```properties Production Profile
+  # application-prod.properties
+  spring.datasource.url=jdbc:postgresql://prod-db-host:5432/opencbs_cloud
+  spring.jpa.show-sql=false
+  logging.level.com.opencbs=INFO
+  server.compression.enabled=true
+  ```
+
+  ```properties Docker Profile
+  # application-docker.properties
+  spring.datasource.url=jdbc:postgresql://postgres:5432/opencbs_cloud
+  spring.datasource.username=${DB_USERNAME}
+  spring.datasource.password=${DB_PASSWORD}
+  ```
+</CodeGroup>
+
+Activate a profile using:
+
+```bash
+# Command line
+java -jar opencbs-server.jar --spring.profiles.active=prod
+
+# Environment variable
+export SPRING_PROFILES_ACTIVE=prod
+
+# Maven
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+## Module Versions
+
+OpenCBS Cloud uses the following version configuration:
+
+| Module | Version |
+|--------|--------|
+| opencbs-cloud | 0.0.1-SNAPSHOT |
+| opencbs-core | 0.0.1-SNAPSHOT |
+| opencbs-loans | 0.0.1-SNAPSHOT |
+| opencbs-savings | 0.0.1-SNAPSHOT |
+| opencbs-borrowings | 0.0.1-SNAPSHOT |
+| opencbs-term-deposits | 0.0.1-SNAPSHOT |
+| opencbs-bonds | 0.0.1-SNAPSHOT |
+| Spring Boot | 1.5.4.RELEASE |
+| Spring Cloud | Dalston.SR1 |
+| PostgreSQL Driver | 42.2.2 |
+| Flyway | 4.0.3 |
+
+## Verification
+
+After configuring your application, verify the configuration:
+
+<Steps>
+  <Step title="Test Database Connection">
+    ```bash
+    psql -h localhost -U opencbs_user -d opencbs_cloud -c "SELECT version();"
+    ```
+  </Step>
+
+  <Step title="Validate Configuration">
+    Run the application with the `--debug` flag to see loaded properties:
+    ```bash
+    java -jar opencbs-server.jar --debug
+    ```
+  </Step>
+
+  <Step title="Check Flyway Migrations">
+    After starting the application, verify migrations ran successfully:
+    ```sql
+    SELECT * FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 10;
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment" icon="rocket" href="./deployment">
+    Deploy OpenCBS Cloud using Docker or manual deployment
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the OpenCBS Cloud API documentation
+  </Card>
+</CardGroup>

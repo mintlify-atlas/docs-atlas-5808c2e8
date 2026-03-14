@@ -1,0 +1,320 @@
+---
+title: Building OpenCBS Cloud
+description: Build and package OpenCBS Cloud for deployment
+---
+
+This guide covers building OpenCBS Cloud for different environments.
+
+## Build Architecture
+
+OpenCBS Cloud consists of two main components:
+- **Server**: Spring Boot applications built with Maven
+- **Client**: Angular application built with Node.js
+
+## Server Build Process
+
+The server uses a modular Maven structure with multiple modules:
+
+- `opencbs-spring-boot-starter` - Custom Spring Boot starter
+- `opencbs-core` - Core banking functionality
+- `opencbs-loans` - Loan management
+- `opencbs-borrowings` - Borrowing management
+- `opencbs-savings` - Savings accounts
+- `opencbs-term-deposits` - Term deposit products
+- `opencbs-bonds` - Bond management
+- `opencbs-server` - Main application module
+
+### Development Build
+
+<Steps>
+  <Step title="Build All Modules">
+    Build all server modules without running tests:
+    
+    ```bash
+    cd server
+    mvn clean install -DskipTests
+    ```
+    
+    This command:
+    - Cleans previous build artifacts
+    - Compiles all modules
+    - Packages them as JAR files
+    - Installs them to local Maven repository
+  </Step>
+
+  <Step title="Build Specific Module">
+    To build a specific module:
+    
+    ```bash
+    mvn -f ./server/opencbs-core/pom.xml clean install
+    ```
+  </Step>
+</Steps>
+
+### Production Build
+
+For production deployments, use the provided build script:
+
+<CodeGroup>
+```bash Build Script
+./build.sh <version> <instance-name>
+
+# Example
+./build.sh 1.0.0 production
+```
+
+```bash Manual Build
+# Build dependencies in order
+mvn -f ./server/opencbs-spring-boot-starter/pom.xml clean install -DskipTests
+mvn -f ./server/opencbs-core/pom.xml clean install -DskipTests
+mvn -f ./server/opencbs-loans/pom.xml clean install -DskipTests
+mvn -f ./server/opencbs-borrowings/pom.xml clean install -DskipTests
+mvn -f ./server/opencbs-savings/pom.xml clean install -DskipTests
+mvn -f ./server/opencbs-term-deposits/pom.xml clean install -DskipTests
+mvn -f ./server/opencbs-bonds/pom.xml clean install -DskipTests
+
+# Build final application JAR
+mvn -f ./server/opencbs-server/pom_backend.xml clean install jar:jar -DBUILD_VERSION=1.0.0
+```
+</CodeGroup>
+
+<Note>
+  The build script requires two arguments:
+  - `version`: The version number for the JAR (e.g., 1.0.0)
+  - `instance`: The instance name without "opencbs" prefix (e.g., production, staging)
+</Note>
+
+### Build Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|----------|
+| `-DskipTests` | Skip running unit tests | Always used in build script |
+| `-DBUILD_VERSION` | Set the build version | `1.0.0`, `2.1.5` |
+| `clean` | Remove previous build artifacts | Recommended before each build |
+| `install` | Install to local Maven repository | Required for multi-module builds |
+
+## Client Build Process
+
+The Angular client is built using the Angular CLI.
+
+### Development Build
+
+<Steps>
+  <Step title="Standard Development Build">
+    ```bash
+    cd client
+    npm run build
+    ```
+    
+    This uses Node with increased memory allocation:
+    ```bash
+    node --max_old_space_size=8192 node_modules/@angular/cli/bin/ng build
+    ```
+  </Step>
+
+  <Step title="Watch Mode">
+    For development with auto-rebuild:
+    
+    ```bash
+    npm start
+    # Or
+    ng serve
+    ```
+  </Step>
+</Steps>
+
+### Production Build
+
+<Steps>
+  <Step title="Production Optimized Build">
+    ```bash
+    npm run build-prod
+    ```
+    
+    This command:
+    - Enables production mode optimizations
+    - Minifies JavaScript and CSS
+    - Performs Ahead-of-Time (AOT) compilation
+    - Tree-shakes unused code
+    - Allocates 16GB of memory for large builds
+    
+    <Note>
+      Production builds can take several minutes and require significant memory.
+    </Note>
+  </Step>
+
+  <Step title="Output Location">
+    Build artifacts are stored in:
+    ```
+    client/dist/
+    ```
+    
+    This directory contains:
+    - Compiled JavaScript bundles
+    - Optimized CSS
+    - Static assets
+    - `index.html` entry point
+  </Step>
+</Steps>
+
+## Build Optimization
+
+### Maven Performance
+
+<CodeGroup>
+```bash Parallel Builds
+# Build modules in parallel (use with caution)
+mvn -T 4 clean install -DskipTests
+```
+
+```bash Offline Mode
+# Skip dependency downloads if already cached
+mvn -o clean install -DskipTests
+```
+
+```bash Skip Tests and Docs
+mvn clean install -DskipTests -Dmaven.javadoc.skip=true
+```
+</CodeGroup>
+
+### Angular Performance
+
+```bash
+# Increase memory for large projects
+node --max_old_space_size=16384 node_modules/@angular/cli/bin/ng build --prod
+
+# Enable build cache
+ng build --build-cache
+```
+
+## Docker Builds
+
+Both client and server include Dockerfiles for containerized builds.
+
+### Server Docker Build
+
+```bash
+cd server/opencbs-server
+docker build -t opencbs-server:latest .
+```
+
+### Client Docker Build
+
+```bash
+cd client
+docker build -t opencbs-client:latest .
+```
+
+<Note>
+  Review the Dockerfile in each directory for specific build arguments and multi-stage build configurations.
+</Note>
+
+## Build Artifacts
+
+### Server Artifacts
+
+After a successful build:
+
+```
+server/opencbs-server/target/
+├── opencbs-server-{version}.jar  # Executable JAR
+├── classes/                       # Compiled classes
+└── generated-sources/             # Generated QueryDSL code
+```
+
+### Client Artifacts
+
+```
+client/dist/
+├── index.html
+├── main.{hash}.js
+├── polyfills.{hash}.js
+├── runtime.{hash}.js
+├── styles.{hash}.css
+└── assets/
+```
+
+## Continuous Integration
+
+### CI Build Example
+
+```yaml .github/workflows/build.yml
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+      - name: Build with Maven
+        run: |
+          cd server
+          mvn clean install -DskipTests
+
+  build-client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - name: Build Angular app
+        run: |
+          cd client
+          npm ci
+          npm run build-prod
+```
+
+## Troubleshooting
+
+### Maven Build Issues
+
+**Problem**: OutOfMemoryError during build
+
+```bash
+# Increase Maven memory
+export MAVEN_OPTS="-Xmx2048m -XX:MaxPermSize=512m"
+mvn clean install
+```
+
+**Problem**: Dependency resolution failures
+
+```bash
+# Force update dependencies
+mvn clean install -U -DskipTests
+```
+
+### Angular Build Issues
+
+**Problem**: JavaScript heap out of memory
+
+```bash
+# Increase Node.js memory
+export NODE_OPTIONS="--max-old-space-size=16384"
+npm run build-prod
+```
+
+**Problem**: Build takes too long
+
+```bash
+# Disable source maps for faster builds
+ng build --prod --source-map=false
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="flask" href="/development/testing">
+    Run tests before deployment
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/getting-started/deployment">
+    Deploy your built artifacts
+  </Card>
+</CardGroup>

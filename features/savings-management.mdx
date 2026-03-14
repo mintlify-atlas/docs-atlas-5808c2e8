@@ -1,0 +1,506 @@
+---
+title: Savings Management
+description: Comprehensive savings account management with interest calculation and fee automation
+---
+
+## Overview
+
+OpenCBS Cloud provides full-featured savings account management including product configuration, account opening, transactions, interest calculation, and fee management. The system supports various savings product types with flexible interest accrual and posting frequencies.
+
+<CardGroup cols={2}>
+  <Card title="Savings Products" icon="piggy-bank">
+    Define product terms, rates, fees, and account rules
+  </Card>
+  <Card title="Account Management" icon="wallet">
+    Open, manage, and close savings accounts
+  </Card>
+  <Card title="Interest Calculation" icon="percent">
+    Automated interest accrual and posting
+  </Card>
+  <Card title="Fees & Charges" icon="coins">
+    Deposit, withdrawal, and management fees
+  </Card>
+</CardGroup>
+
+## Savings Products
+
+### Product Structure
+
+Savings products define the terms and conditions for savings accounts:
+
+```java
+@Entity
+@Table(name = "saving_products")
+public class SavingProduct extends NamedBaseEntity {
+    @Column(name = "code", nullable = false)
+    private String code;
+    
+    @Column(name = "availability", nullable = false)
+    private int availability;
+    
+    @ManyToOne
+    @JoinColumn(name = "currency_id", nullable = false)
+    private Currency currency;
+    
+    // Initial amount constraints
+    @Column(name = "initial_amount_min", precision = 14, scale = 2, nullable = false)
+    private BigDecimal initialAmountMin;
+    
+    @Column(name = "initial_amount_max", precision = 14, scale = 2, nullable = false)
+    private BigDecimal initialAmountMax;
+    
+    // Interest rate configuration
+    @Column(name = "interest_rate_min", precision = 8, scale = 4, nullable = false)
+    private BigDecimal interestRateMin;
+    
+    @Column(name = "interest_rate_max", precision = 8, scale = 4, nullable = false)
+    private BigDecimal interestRateMax;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "interest_accrual_frequency", nullable = false)
+    private Frequency interestAccrualFrequency;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "posting_frequency", nullable = false)
+    private Frequency postingFrequency;
+    
+    @Column(name = "capitalized")
+    private boolean capitalized;
+    
+    @Column(name = "min_balance", nullable = false)
+    private BigDecimal minBalance = BigDecimal.ZERO;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name="status", nullable = false)
+    private StatusType statusType = StatusType.ACTIVE;
+}
+```
+
+<Accordion title="Product Configuration Fields">
+  - **Code**: Unique product identifier (e.g., "SAV001", "TIME_DEPOSIT_12M")
+  - **Availability**: Which profile types can open accounts (bitmap)
+  - **Currency**: Base currency for the product
+  - **Initial Amount**: Min/max opening balance requirements
+  - **Interest Rate**: Allowable rate range (annual percentage)
+  - **Interest Accrual Frequency**: How often interest is calculated (daily, monthly, etc.)
+  - **Posting Frequency**: When interest is added to account (monthly, quarterly, etc.)
+  - **Capitalized**: Whether interest compounds (added to principal)
+  - **Min Balance**: Minimum balance to avoid fees or earn interest
+  - **Status**: Product availability (ACTIVE, INACTIVE)
+</Accordion>
+
+### Transaction Fees
+
+Products configure fees for deposits and withdrawals:
+
+```java
+// Deposit fees
+@Column(name = "deposit_amount_min", precision = 14, scale = 2, nullable = false)
+private BigDecimal depositAmountMin;
+
+@Column(name = "deposit_amount_max", precision = 14, scale = 2, nullable = false)
+private BigDecimal depositAmountMax;
+
+@Column(name = "deposit_fee_rate_min", precision = 14, scale = 2)
+private BigDecimal depositFeeRateMin;
+
+@Column(name = "deposit_fee_rate_max", precision = 14, scale = 2)
+private BigDecimal depositFeeRateMax;
+
+@Column(name = "deposit_fee_flat_min", precision = 14, scale = 2)
+private BigDecimal depositFeeFlatMin;
+
+@Column(name = "deposit_fee_flat_max", precision = 14, scale = 2)
+private BigDecimal depositFeeFlatMax;
+
+// Withdrawal fees
+@Column(name = "withdrawal_amount_min", precision = 14, scale = 2, nullable = false)
+private BigDecimal withdrawalAmountMin;
+
+@Column(name = "withdrawal_amount_max", precision = 14, scale = 2, nullable = false)
+private BigDecimal withdrawalAmountMax;
+
+@Column(name = "withdrawal_fee_rate_min", precision = 14, scale = 2)
+private BigDecimal withdrawalFeeRateMin;
+
+@Column(name = "withdrawal_fee_rate_max", precision = 14, scale = 2)
+private BigDecimal withdrawalFeeRateMax;
+
+@Column(name = "withdrawal_fee_flat_min", precision = 14, scale = 2)
+private BigDecimal withdrawalFeeFlatMin;
+
+@Column(name = "withdrawal_fee_flat_max", precision = 14, scale = 2)
+private BigDecimal withdrawalFeeFlatMax;
+```
+
+<Note>
+  Fees can be configured as a percentage (rate) or fixed amount (flat). The product defines min/max ranges; individual accounts set actual fee within range.
+</Note>
+
+### Management and Service Fees
+
+```java
+@Column(name = "management_fee_rate_min", precision = 14, scale = 2)
+private BigDecimal managementFeeRateMin;
+
+@Column(name = "management_fee_rate_max", precision = 14, scale = 2)
+private BigDecimal managementFeeRateMax;
+
+@Column(name = "management_fee_flat_min", precision = 14, scale = 2)
+private BigDecimal managementFeeFlatMin;
+
+@Column(name = "management_fee_flat_max", precision = 14, scale = 2)
+private BigDecimal managementFeeFlatMax;
+
+@Enumerated(EnumType.STRING)
+@Column(name = "management_fee_frequency", nullable = false)
+private Frequency managementFeeFrequency;
+
+// Entry fees (one-time at account opening)
+@Column(name = "entry_fee_rate_min", precision = 14, scale = 2)
+private BigDecimal entryFeeRateMin;
+
+@Column(name = "entry_fee_rate_max", precision = 14, scale = 2)
+private BigDecimal entryFeeRateMax;
+
+// Close fees (charged when account closed)
+@Column(name = "close_fee_rate_min", precision = 14, scale = 2)
+private BigDecimal closeFeeRateMin;
+
+@Column(name = "close_fee_rate_max", precision = 14, scale = 2)
+private BigDecimal closeFeeRateMax;
+```
+
+**Fee Types Explained:**
+- **Entry Fee**: One-time charge when opening account
+- **Management Fee**: Periodic maintenance fee (monthly, quarterly, annually)
+- **Close Fee**: Charge for closing account
+- **Transaction Fees**: Per-transaction charges for deposits/withdrawals
+
+### Product Accounts
+
+Accounting configuration for automated GL posting:
+
+```java
+@OneToMany(mappedBy = "product", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+private List<SavingProductAccount> accounts;
+```
+
+**Required Account Mappings:**
+- Current balance account (liability)
+- Interest expense account
+- Fee income accounts
+- Overdraft accounts (if applicable)
+
+## Savings Accounts
+
+### Account Structure
+
+```java
+@Entity
+@Table(name = "savings")
+public class Saving extends Contract {
+    @Column(name = "code")
+    private String code;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_id", nullable = false)
+    private Profile profile;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "saving_product_id", nullable = false)
+    private SavingProduct product;
+    
+    @Column(name = "interest_rate", nullable = false)
+    private BigDecimal interestRate;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "interest_accrual_frequency", nullable = false)
+    private Frequency interestAccrualFrequency;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "interest_posting_frequency", nullable = false)
+    private Frequency interestPostingFrequency;
+    
+    @Column(name = "capitalized", nullable = false)
+    private boolean capitalized;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private SavingStatus status;
+    
+    @Column(name = "locked", nullable = false)
+    private boolean locked;
+    
+    @OneToMany(mappedBy = "saving")
+    private List<SavingAccount> accounts;
+    
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinTable(name = "savings_accounting_entries")
+    private List<AccountingEntry> accountingEntries;
+}
+```
+
+<Tabs>
+  <Tab title="Account Status">
+    **Savings Account Lifecycle:**
+    
+    ```java
+    public enum SavingStatus {
+        PENDING,
+        ACTIVE,
+        INACTIVE,
+        CLOSED,
+        BLOCKED
+    }
+    ```
+    
+    - **PENDING**: Account created but not yet opened
+    - **ACTIVE**: Fully operational account
+    - **INACTIVE**: Temporarily suspended (no transactions)
+    - **BLOCKED**: Frozen by institution (legal hold, etc.)
+    - **CLOSED**: Permanently closed account
+    
+    <Note>
+      Only ACTIVE accounts can process transactions and accrue interest.
+    </Note>
+  </Tab>
+  
+  <Tab title="Interest Configuration">
+    Account-level interest settings inherited from product but can be customized within product limits:
+    
+    ```java
+    @Column(name = "interest_rate", nullable = false)
+    private BigDecimal interestRate; // Must be between product min/max
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "interest_accrual_frequency", nullable = false)
+    private Frequency interestAccrualFrequency;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "interest_posting_frequency", nullable = false)
+    private Frequency interestPostingFrequency;
+    
+    @Column(name = "capitalized", nullable = false)
+    private boolean capitalized;
+    ```
+    
+    **Frequency Options:**
+    - DAILY
+    - WEEKLY  
+    - MONTHLY
+    - QUARTERLY
+    - ANNUALLY
+  </Tab>
+  
+  <Tab title="Fee Structure">
+    Account-specific fees within product ranges:
+    
+    ```java
+    // Deposit fees
+    @Column(name = "deposit_amount_min", nullable = false)
+    private BigDecimal depositAmountMin;
+    
+    @Column(name = "deposit_amount_max", nullable = false)
+    private BigDecimal depositAmountMax;
+    
+    @Column(name = "deposit_fee_rate", nullable = false)
+    private BigDecimal depositFeeRate;
+    
+    @Column(name = "deposit_fee_flat", nullable = false)
+    private BigDecimal depositFeeFlat;
+    
+    // Withdrawal fees
+    @Column(name = "withdrawal_amount_min", nullable = false)
+    private BigDecimal withdrawalAmountMin;
+    
+    @Column(name = "withdrawal_amount_max", nullable = false)
+    private BigDecimal withdrawalAmountMax;
+    
+    @Column(name = "withdrawal_fee_rate", nullable = false)
+    private BigDecimal withdrawalFeeRate;
+    
+    @Column(name = "withdrawal_fee_flat", nullable = false)
+    private BigDecimal withdrawalFeeFlat;
+    
+    // Management and other fees
+    @Column(name = "management_fee_rate", nullable = false)
+    private BigDecimal managementFeeRate;
+    
+    @Column(name = "management_fee_flat", nullable = false)
+    private BigDecimal managementFeeFlat;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "management_fee_frequency", nullable = false)
+    private Frequency managementFeeFrequency;
+    
+    @Column(name = "entry_fee_rate", nullable = false)
+    private BigDecimal entryFeeRate;
+    
+    @Column(name = "entry_fee_flat", nullable = false)
+    private BigDecimal entryFeeFlat;
+    
+    @Column(name = "close_fee_rate", nullable = false)
+    private BigDecimal closeFeeRate;
+    
+    @Column(name = "close_fee_flat", nullable = false)
+    private BigDecimal closeFeeFlat;
+    ```
+  </Tab>
+</Tabs>
+
+## Interest Calculation
+
+### Accrual Process
+
+Interest accrues based on the configured frequency:
+
+```java
+@Enumerated(EnumType.STRING)
+@Column(name = "interest_accrual_frequency", nullable = false)
+private Frequency interestAccrualFrequency;
+```
+
+**Accrual Calculation:**
+1. Daily balance tracked
+2. Interest calculated: `Balance × (Annual Rate / Days in Year) × Days`
+3. Accrued interest accumulated
+4. Posted to account on posting frequency
+
+### Interest Posting
+
+```java
+@Enumerated(EnumType.STRING)
+@Column(name = "interest_posting_frequency", nullable = false)
+private Frequency interestPostingFrequency;
+```
+
+On posting date:
+1. Calculate total accrued interest since last posting
+2. Create accounting entry (Debit: Interest Expense, Credit: Savings Account)
+3. If capitalized, add interest to principal balance
+4. Reset accrual tracking
+
+### Capitalization
+
+```java
+@Column(name = "capitalized", nullable = false)
+private boolean capitalized;
+```
+
+- **Capitalized = true**: Interest added to principal, earns interest in next period
+- **Capitalized = false**: Interest credited but doesn't earn interest
+
+<Accordion title="Interest Calculation Example">
+  **Scenario:**
+  - Balance: $10,000
+  - Annual Interest Rate: 6%
+  - Accrual Frequency: Daily
+  - Posting Frequency: Monthly
+  - Capitalized: Yes
+  
+  **Month 1:**
+  - Daily Interest = $10,000 × (6% / 365) = $1.64
+  - 30 Days = $1.64 × 30 = $49.32
+  - Posted at month end, new balance = $10,049.32
+  
+  **Month 2:**
+  - Daily Interest = $10,049.32 × (6% / 365) = $1.65
+  - Interest compounds on previous interest
+</Accordion>
+
+## Transactions
+
+### Account Locking
+
+```java
+@Column(name = "locked", nullable = false)
+private boolean locked;
+```
+
+Prevents transactions during batch processing or investigations.
+
+### User and Date Tracking
+
+```java
+@Column(name = "created_at")
+private LocalDateTime createdAt;
+
+@Column(name = "open_date")
+private LocalDateTime openDate;
+
+@Column(name = "close_date")
+private LocalDateTime closeDate;
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "created_by_id")
+private User createdBy;
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "opened_by_id")
+private User openedBy;
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "closed_by_id")
+private User closedBy;
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "saving_officer_id")
+private User savingOfficer;
+```
+
+Complete audit trail of account lifecycle events.
+
+## Management Fees
+
+Periodic maintenance fees:
+
+```java
+@Column(name = "management_fee_rate", nullable = false)
+private BigDecimal managementFeeRate;
+
+@Column(name = "management_fee_flat", nullable = false)
+private BigDecimal managementFeeFlat;
+
+@Enumerated(EnumType.STRING)
+@Column(name = "management_fee_frequency", nullable = false)
+private Frequency managementFeeFrequency;
+```
+
+**Fee Application:**
+1. Calculated on specified frequency (monthly, quarterly, etc.)
+2. Can be percentage of balance or flat fee
+3. Automatically deducted from account
+4. Posted to fee income account
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Product Design" icon="compass-drafting">
+    - Set realistic min/max constraints
+    - Align accrual and posting frequencies
+    - Consider competitive interest rates
+    - Define clear fee structures
+  </Card>
+  
+  <Card title="Interest Management" icon="calculator">
+    - Verify rate calculations regularly
+    - Monitor accrual accuracy
+    - Handle leap years correctly
+    - Document rate change procedures
+  </Card>
+  
+  <Card title="Fee Configuration" icon="hand-holding-dollar">
+    - Communicate fees clearly to clients
+    - Review competitive fee levels
+    - Consider fee waivers for minimum balance
+    - Track fee income separately
+  </Card>
+  
+  <Card title="Account Operations" icon="gears">
+    - Lock accounts during batch processing
+    - Verify accounting entries daily
+    - Monitor dormant accounts
+    - Regular balance reconciliation
+  </Card>
+</CardGroup>

@@ -1,0 +1,513 @@
+---
+title: 'User Management API'
+description: 'Manage system users, authentication, roles, and permissions'
+---
+
+## Overview
+
+The User Management API provides endpoints for creating, updating, and managing users in OpenCBS. All user creation and modification operations follow the maker-checker workflow for enhanced security.
+
+## Get Current User
+
+Retrieve the currently authenticated user's details.
+
+```http
+GET /api/users/current
+```
+
+### Response
+
+<ResponseField name="id" type="number">
+  Unique identifier for the user
+</ResponseField>
+
+<ResponseField name="username" type="string">
+  User's login username
+</ResponseField>
+
+<ResponseField name="firstName" type="string">
+  User's first name
+</ResponseField>
+
+<ResponseField name="lastName" type="string">
+  User's last name
+</ResponseField>
+
+<ResponseField name="role" type="object">
+  User's assigned role with permissions
+</ResponseField>
+
+<ResponseField name="branch" type="object">
+  Branch assignment for the user
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-instance.opencbs.cloud/api/users/current \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-instance.opencbs.cloud/api/users/current', {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const user = await response.json();
+```
+</CodeGroup>
+
+## List Users
+
+Retrieve a list of all users in the system.
+
+```http
+GET /api/users
+```
+
+### Query Parameters
+
+<ParamField query="show_all" type="boolean" default="false">
+  If `true`, returns all users including inactive ones. If `false`, returns only active users.
+</ParamField>
+
+### Response
+
+Returns an array of user objects.
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/users?show_all=false" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-instance.opencbs.cloud/api/users?show_all=false', {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const users = await response.json();
+```
+</CodeGroup>
+
+## Get User by ID
+
+Retrieve detailed information about a specific user.
+
+```http
+GET /api/users/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the user
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  User's unique identifier
+</ResponseField>
+
+<ResponseField name="username" type="string">
+  User's login username
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address
+</ResponseField>
+
+<ResponseField name="role" type="object">
+  Complete role details including permissions
+</ResponseField>
+
+<ResponseField name="branch" type="object">
+  Branch assignment details
+</ResponseField>
+
+<ResponseField name="isDeleted" type="boolean">
+  Whether the user is active or deleted
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-instance.opencbs.cloud/api/users/123 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const userId = 123;
+const response = await fetch(`https://your-instance.opencbs.cloud/api/users/${userId}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const user = await response.json();
+```
+</CodeGroup>
+
+## User Lookup (Paginated)
+
+Search and filter users with pagination support.
+
+```http
+GET /api/users/lookup
+```
+
+### Query Parameters
+
+<ParamField query="branchId" type="number">
+  Filter users by branch ID
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search term to filter users by name or username
+</ParamField>
+
+<ParamField query="show_all" type="boolean" default="false">
+  Include inactive users in results
+</ParamField>
+
+<ParamField query="page" type="number" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+<ParamField query="size" type="number" default="20">
+  Number of items per page
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of user objects
+</ResponseField>
+
+<ResponseField name="totalElements" type="number">
+  Total number of users matching criteria
+</ResponseField>
+
+<ResponseField name="totalPages" type="number">
+  Total number of pages
+</ResponseField>
+
+<ResponseField name="number" type="number">
+  Current page number
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/users/lookup?branchId=5&search=john&page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  branchId: '5',
+  search: 'john',
+  page: '0',
+  size: '20'
+});
+
+const response = await fetch(`https://your-instance.opencbs.cloud/api/users/lookup?${params}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const data = await response.json();
+```
+</CodeGroup>
+
+## Get Tellers
+
+Retrieve a paginated list of users with teller role.
+
+```http
+GET /api/users/tellers
+```
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Search term to filter tellers
+</ParamField>
+
+<ParamField query="page" type="number" default="0">
+  Page number
+</ParamField>
+
+<ParamField query="size" type="number" default="20">
+  Items per page
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/users/tellers?search=&page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Create User
+
+Create a new user through the maker-checker workflow.
+
+<Note>
+  Requires `MAKER_FOR_USER` permission. This operation creates a request that must be approved by a checker.
+</Note>
+
+```http
+POST /api/users
+```
+
+### Request Body
+
+<ParamField body="username" type="string" required>
+  Unique username for login
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password (will be encrypted)
+</ParamField>
+
+<ParamField body="firstName" type="string" required>
+  User's first name
+</ParamField>
+
+<ParamField body="lastName" type="string" required>
+  User's last name
+</ParamField>
+
+<ParamField body="email" type="string">
+  User's email address
+</ParamField>
+
+<ParamField body="roleId" type="number" required>
+  ID of the role to assign
+</ParamField>
+
+<ParamField body="branchId" type="number">
+  ID of the branch to assign
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  ID of the created maker-checker request (not the user ID)
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-instance.opencbs.cloud/api/users \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "jdoe",
+    "password": "SecurePass123!",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "jdoe@example.com",
+    "roleId": 2,
+    "branchId": 1
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-instance.opencbs.cloud/api/users', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    username: 'jdoe',
+    password: 'SecurePass123!',
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'jdoe@example.com',
+    roleId: 2,
+    branchId: 1
+  })
+});
+const request = await response.json();
+```
+</CodeGroup>
+
+## Update User
+
+Update an existing user through the maker-checker workflow.
+
+<Note>
+  Requires `MAKER_FOR_USER` permission. The system user (ID=1) cannot be updated.
+</Note>
+
+```http
+PUT /api/users/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  The ID of the user to update
+</ParamField>
+
+### Request Body
+
+Same fields as Create User (password is optional for updates).
+
+### Response
+
+<ResponseField name="id" type="number">
+  ID of the created maker-checker request
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://your-instance.opencbs.cloud/api/users/123 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "jdoe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "jdoe@example.com",
+    "roleId": 2,
+    "branchId": 1
+  }'
+```
+</CodeGroup>
+
+## Update Password
+
+Update a user's password.
+
+```http
+PUT /api/users/update-password
+```
+
+### Request Body
+
+<ParamField body="userId" type="number" required>
+  ID of the user whose password is being updated
+</ParamField>
+
+<ParamField body="oldPassword" type="string" required>
+  Current password (required if user is updating their own password)
+</ParamField>
+
+<ParamField body="newPassword" type="string" required>
+  New password
+</ParamField>
+
+<ParamField body="confirmPassword" type="string" required>
+  Confirmation of new password (must match newPassword)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://your-instance.opencbs.cloud/api/users/update-password \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 123,
+    "oldPassword": "OldPass123!",
+    "newPassword": "NewSecurePass123!",
+    "confirmPassword": "NewSecurePass123!"
+  }'
+```
+</CodeGroup>
+
+## Check Username Availability
+
+Check if a username already exists in the system.
+
+```http
+GET /api/users/find-by-username
+```
+
+### Query Parameters
+
+<ParamField query="username" type="string" required>
+  Username to check
+</ParamField>
+
+### Response
+
+Returns `true` if username exists, `false` if available.
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/users/find-by-username?username=jdoe" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Get User History
+
+Retrieve the complete audit history for a user.
+
+```http
+GET /api/users/{id}/history
+```
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  User ID
+</ParamField>
+
+### Response
+
+Returns an array of audit history entries showing all changes made to the user.
+
+<ResponseField name="[].modifiedAt" type="string">
+  Timestamp of the modification
+</ResponseField>
+
+<ResponseField name="[].modifiedBy" type="string">
+  Username who made the modification
+</ResponseField>
+
+<ResponseField name="[].changes" type="object">
+  Details of what was changed
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-instance.opencbs.cloud/api/users/123/history \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Get User Change at Specific Time
+
+Retrieve user data as it existed at a specific point in time.
+
+```http
+GET /api/users/{id}/history/last_change
+```
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  User ID
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="dateTime" type="string" required>
+  ISO 8601 datetime string (e.g., "2024-03-14T10:30:00")
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://your-instance.opencbs.cloud/api/users/123/history/last_change?dateTime=2024-03-14T10:30:00" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Related Endpoints
+
+- [Roles API](/admin/permissions) - Manage user roles and permissions
+- [Permissions API](/admin/permissions) - View available permissions
+- [Branches API](/api/branches) - Manage branch assignments

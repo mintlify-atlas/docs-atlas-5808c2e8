@@ -1,0 +1,159 @@
+---
+title: Creating Client Profiles
+description: Learn how to create and manage client profiles in OpenCBS Cloud
+---
+
+Client profiles are the foundation of your lending operations in OpenCBS Cloud. The system supports three types of profiles: individuals (people), companies, and groups.
+
+## Profile Types
+
+OpenCBS Cloud supports the following profile types:
+
+- **People**: Individual clients (borrowers, guarantors, etc.)
+- **Companies**: Corporate entities and organizations
+- **Groups**: Solidarity groups or lending groups
+
+## Creating a New Profile
+
+<Steps>
+  <Step title="Navigate to Profiles">
+    From the main navigation menu, click on **Profiles** to access the profiles management section.
+  </Step>
+
+  <Step title="Select Profile Type">
+    Click the **Create New** button and choose the type of profile you want to create:
+    - People (for individual clients)
+    - Companies (for corporate entities)
+    - Groups (for group lending)
+  </Step>
+
+  <Step title="Fill in Profile Information">
+    The profile creation form is organized into custom field sections. Each section contains specific fields based on your institution's configuration:
+
+    - **Basic Information**: Name, contact details, identification
+    - **Address Information**: Physical address, location details
+    - **Financial Information**: Income, employment, business details
+    - **Additional Custom Fields**: Any custom fields configured for your institution
+
+    <Note>
+      Required fields are marked with an asterisk (*). You must complete all required fields before submitting the form.
+    </Note>
+  </Step>
+
+  <Step title="Review and Submit">
+    - Review all entered information for accuracy
+    - Click the **Submit** button to create the profile
+    - The system will validate all fields and create the profile
+  </Step>
+
+  <Step title="Confirmation">
+    Upon successful creation:
+    - You'll see a success notification
+    - You'll be redirected to the profiles list
+    - The new profile will be available in the system
+  </Step>
+</Steps>
+
+## Profile API Endpoints
+
+Profiles are created using the following API endpoints:
+
+```
+POST /profiles/people
+POST /profiles/companies
+POST /profiles/groups
+```
+
+### Request Structure
+
+```json
+{
+  "fieldValues": [
+    {
+      "fieldId": 1,
+      "value": "John Doe"
+    },
+    {
+      "fieldId": 2,
+      "value": "john.doe@email.com"
+    }
+  ]
+}
+```
+
+<Tip>
+  The `fieldValues` array contains all the custom field data for the profile. Each field is identified by its `fieldId` and paired with the corresponding value.
+</Tip>
+
+## Managing Profile Information
+
+### Custom Fields
+
+Profiles use a flexible custom field system that allows your institution to configure exactly what information is collected for each profile type. Custom fields are organized into sections for better organization.
+
+### Field Sections
+
+The profile form displays fields in collapsible sections:
+- Navigate between sections using the section navigation menu
+- Each section groups related fields together
+- All sections must be completed before submission
+
+## Maker-Checker Workflow
+
+<Note>
+  If your institution has enabled maker-checker approval for profiles, newly created profiles may require approval before they become active in the system.
+</Note>
+
+When maker-checker is enabled:
+1. User creates the profile ("maker")
+2. Profile enters pending approval state
+3. Authorized user reviews and approves ("checker")
+4. Profile becomes active upon approval
+
+## Profile Attachments
+
+After creating a profile, you can:
+- Upload supporting documents
+- Add identification documents
+- Attach verification documents
+
+Access attachments from the profile detail page under the **Attachments** tab.
+
+## Profile Events and History
+
+All profile changes are tracked in the system:
+- View profile history on the **Events** tab
+- See who made changes and when
+- Track status changes and updates
+
+Access the events history via:
+```
+GET /profile-events?profileId={id}
+```
+
+## Best Practices
+
+<Tip>
+  **Data Quality Tips**
+  - Verify identification documents before entering data
+  - Use consistent formatting for names and addresses
+  - Double-check contact information (phone, email)
+  - Complete all available fields for better credit assessment
+</Tip>
+
+## Common Errors
+
+| Error | Solution |
+|-------|----------|
+| Required field missing | Complete all fields marked with asterisk (*) |
+| Invalid field format | Check field requirements (e.g., valid email format) |
+| Duplicate profile | Search existing profiles before creating new ones |
+
+## Next Steps
+
+After creating a profile, you can:
+
+- [Create a loan application](/guides/loan-origination) for the client
+- Add savings accounts or other products
+- Link relationships and guarantors
+- Upload supporting documents

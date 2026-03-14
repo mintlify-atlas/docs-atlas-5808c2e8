@@ -1,0 +1,423 @@
+---
+title: Currency Configuration
+description: Manage currencies and exchange rates in OpenCBS Cloud
+---
+
+## Overview
+
+OpenCBS supports multi-currency operations, allowing you to manage financial products and transactions in different currencies. The system maintains currency definitions and exchange rates for currency conversion.
+
+## Currency Structure
+
+Each currency in OpenCBS has the following properties:
+
+<ParamField path="id" type="long">
+  Unique identifier for the currency
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Full name of the currency (e.g., "United States Dollar")
+</ParamField>
+
+<ParamField path="code" type="string" required>
+  ISO 4217 currency code (e.g., "USD", "EUR", "GBP")
+</ParamField>
+
+<ParamField path="isMain" type="boolean" required>
+  Whether this is the main (base) currency for the system
+</ParamField>
+
+## Viewing Currencies
+
+### Get All Currencies
+
+Retrieve all currencies in the system:
+
+```bash
+GET /api/currencies
+```
+
+Response:
+```json
+[
+  {
+    "id": 1,
+    "name": "United States Dollar",
+    "code": "USD",
+    "isMain": true
+  },
+  {
+    "id": 2,
+    "name": "Euro",
+    "code": "EUR",
+    "isMain": false
+  },
+  {
+    "id": 3,
+    "name": "British Pound",
+    "code": "GBP",
+    "isMain": false
+  }
+]
+```
+
+### Currency Lookup
+
+Search for currencies with pagination:
+
+```bash
+GET /api/currencies/lookup?search=dollar&page=0&size=20
+```
+
+Query parameters:
+- `search`: Search term to filter currencies by name or code
+- `page`: Page number (zero-indexed)
+- `size`: Number of results per page
+
+Response:
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "name": "United States Dollar",
+      "code": "USD",
+      "isMain": true
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1,
+  "size": 20,
+  "number": 0
+}
+```
+
+## Main Currency
+
+Every OpenCBS instance must have exactly one main currency:
+
+- The main currency serves as the base currency for the system
+- All exchange rates are defined relative to the main currency
+- Financial reports use the main currency as the default
+
+<Warning>
+  Only one currency can be marked as `isMain: true`. The main currency is critical for exchange rate calculations.
+</Warning>
+
+## Currency Codes
+
+OpenCBS uses ISO 4217 standard currency codes:
+
+| Code | Currency Name |
+|------|---------------|
+| USD | United States Dollar |
+| EUR | Euro |
+| GBP | British Pound Sterling |
+| JPY | Japanese Yen |
+| CHF | Swiss Franc |
+| CAD | Canadian Dollar |
+| AUD | Australian Dollar |
+| CNY | Chinese Yuan |
+| INR | Indian Rupee |
+| KGS | Kyrgyzstani Som |
+
+<Note>
+  Use standard ISO 4217 codes for consistency and interoperability.
+</Note>
+
+## Exchange Rates
+
+Exchange rates define the conversion ratio between currencies. OpenCBS maintains historical exchange rates for accurate financial reporting.
+
+### Exchange Rate Structure
+
+<ParamField path="id" type="long">
+  Unique identifier for the exchange rate record
+</ParamField>
+
+<ParamField path="rate" type="BigDecimal" required>
+  Exchange rate value (precision: 14 digits, scale: 4 decimal places)
+</ParamField>
+
+<ParamField path="fromCurrency" type="Currency" required>
+  Source currency for the conversion
+</ParamField>
+
+<ParamField path="toCurrency" type="Currency" required>
+  Target currency for the conversion
+</ParamField>
+
+<ParamField path="date" type="LocalDate" required>
+  Effective date of the exchange rate
+</ParamField>
+
+### How Exchange Rates Work
+
+Exchange rates in OpenCBS:
+
+<Steps>
+  <Step title="Define Currency Pair">
+    Each rate specifies conversion from one currency to another (e.g., USD to EUR).
+  </Step>
+  
+  <Step title="Set Rate Value">
+    The rate value indicates how much of the target currency equals one unit of the source currency.
+  </Step>
+  
+  <Step title="Date Effective">
+    Each rate has an effective date, allowing historical rates to be maintained.
+  </Step>
+  
+  <Step title="Apply in Calculations">
+    The system uses the appropriate rate based on the transaction date.
+  </Step>
+</Steps>
+
+### Exchange Rate Example
+
+```json
+{
+  "id": 1,
+  "rate": 0.8500,
+  "fromCurrency": {
+    "id": 1,
+    "code": "USD",
+    "name": "United States Dollar"
+  },
+  "toCurrency": {
+    "id": 2,
+    "code": "EUR",
+    "name": "Euro"
+  },
+  "date": "2024-03-14"
+}
+```
+
+This rate means: 1 USD = 0.85 EUR on March 14, 2024
+
+## Multi-Currency Operations
+
+### Setting Up Multi-Currency
+
+<Steps>
+  <Step title="Define Main Currency">
+    Ensure you have one currency marked as `isMain: true`.
+  </Step>
+  
+  <Step title="Add Additional Currencies">
+    Add all currencies your organization needs to support.
+  </Step>
+  
+  <Step title="Configure Exchange Rates">
+    Set up exchange rates between your main currency and each additional currency.
+  </Step>
+  
+  <Step title="Update Rates Regularly">
+    Maintain current exchange rates for accurate conversions.
+  </Step>
+</Steps>
+
+### Currency in Financial Products
+
+When creating financial products:
+
+- **Loans**: Can be denominated in any configured currency
+- **Savings Accounts**: Support multi-currency deposits
+- **Term Deposits**: Can be opened in different currencies
+- **Borrowings**: Support multi-currency debt instruments
+
+### Currency Conversion
+
+When the system needs to convert between currencies:
+
+1. Identifies the source and target currencies
+2. Retrieves the exchange rate for the transaction date
+3. Applies the rate to convert the amount
+4. Records both original and converted amounts
+
+<Note>
+  The system maintains the original currency of each transaction while allowing reporting in the main currency.
+</Note>
+
+## Best Practices
+
+<Steps>
+  <Step title="Choose the Right Main Currency">
+    Select your main operating currency as the base currency. This is typically your local currency or primary reporting currency.
+  </Step>
+  
+  <Step title="Regular Rate Updates">
+    Update exchange rates regularly (daily or weekly) to ensure accurate conversions.
+  </Step>
+  
+  <Step title="Historical Rates">
+    Maintain historical exchange rates for accurate reporting on past transactions.
+  </Step>
+  
+  <Step title="Standard Codes">
+    Always use ISO 4217 standard currency codes for consistency.
+  </Step>
+  
+  <Step title="Rate Sources">
+    Document your source for exchange rates (e.g., central bank, financial provider) for audit purposes.
+  </Step>
+  
+  <Step title="Precision Matters">
+    Exchange rates support 4 decimal places - use appropriate precision for your currencies.
+  </Step>
+</Steps>
+
+## Common Currency Setups
+
+### Single Currency
+
+For organizations operating in one currency:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "United States Dollar",
+    "code": "USD",
+    "isMain": true
+  }
+]
+```
+
+### Dual Currency
+
+For organizations with operations in two currencies:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Kyrgyzstani Som",
+    "code": "KGS",
+    "isMain": true
+  },
+  {
+    "id": 2,
+    "name": "United States Dollar",
+    "code": "USD",
+    "isMain": false
+  }
+]
+```
+
+With exchange rate:
+```json
+{
+  "rate": 87.5000,
+  "fromCurrency": {"code": "USD"},
+  "toCurrency": {"code": "KGS"},
+  "date": "2024-03-14"
+}
+```
+
+### Multi-Currency Regional
+
+For organizations spanning multiple countries:
+
+```json
+[
+  {
+    "name": "Euro",
+    "code": "EUR",
+    "isMain": true
+  },
+  {
+    "name": "British Pound",
+    "code": "GBP",
+    "isMain": false
+  },
+  {
+    "name": "Swiss Franc",
+    "code": "CHF",
+    "isMain": false
+  }
+]
+```
+
+## Exchange Rate Precision
+
+Exchange rates use `BigDecimal` with:
+- **Precision**: 14 total digits
+- **Scale**: 4 decimal places
+
+Examples:
+- `0.8500` (USD to EUR)
+- `110.2500` (USD to JPY)
+- `1.2000` (EUR to USD)
+
+<Warning>
+  Using insufficient decimal places can lead to rounding errors in large transactions. Always use the full 4 decimal places.
+</Warning>
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/currencies` | GET | List all currencies |
+| `/api/currencies/lookup` | GET | Search currencies with pagination |
+
+<Note>
+  The current API provides read access to currencies. Currency and exchange rate management may be handled through database administration or a separate admin interface.
+</Note>
+
+## Related Documentation
+
+- [Branches](/admin/branches) - Multi-branch operations with multi-currency support
+- [Global Settings](/admin/global-settings) - Configure default currency settings
+
+## Use Cases
+
+### International Microfinance
+
+An organization operating in multiple countries:
+
+1. Set the main currency to the primary reporting currency (e.g., USD)
+2. Add local currencies for each country of operation
+3. Maintain daily exchange rates from each local currency to USD
+4. Issue loans in local currencies while reporting in USD
+
+### Currency Hedging
+
+An organization offering multi-currency products:
+
+1. Configure all relevant currencies
+2. Maintain real-time exchange rates
+3. Allow clients to choose their preferred currency
+4. Generate reports showing exposure in each currency
+
+### Historical Analysis
+
+Analyzing past performance across currencies:
+
+1. Maintain complete historical exchange rate records
+2. Use transaction-date rates for historical conversions
+3. Generate comparative reports across time periods
+4. Account for currency fluctuations in performance metrics
+
+## Troubleshooting
+
+### Missing Exchange Rate
+
+**Issue**: Currency conversion fails
+
+**Solution**: Ensure exchange rates exist for the required currency pair and date range.
+
+### Incorrect Conversions
+
+**Issue**: Conversion amounts seem wrong
+
+**Solution**: 
+- Verify the exchange rate value is correct
+- Check the direction (from/to currencies)
+- Ensure the rate date matches the transaction date
+
+### Main Currency Not Set
+
+**Issue**: System requires a main currency
+
+**Solution**: Designate exactly one currency as `isMain: true` in the database.

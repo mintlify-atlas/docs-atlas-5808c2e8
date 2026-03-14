@@ -1,0 +1,309 @@
+---
+title: Permissions & Role-Based Access Control
+description: Configure roles and permissions to control access to OpenCBS features
+---
+
+## Overview
+
+OpenCBS uses a role-based access control (RBAC) system where permissions are assigned to roles, and users are assigned to roles. This provides fine-grained control over what users can do in the system.
+
+## Permission Structure
+
+Each permission in OpenCBS has the following attributes:
+
+<ParamField path="name" type="string" required>
+  Unique identifier for the permission (e.g., "MAKER_FOR_USER", "VIEW_LOANS")
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Human-readable description of what the permission allows
+</ParamField>
+
+<ParamField path="moduleType" type="enum" required>
+  The module this permission belongs to (e.g., `MAKER_CHECKER`, `LOANS`, `SAVINGS`)
+</ParamField>
+
+<ParamField path="permanent" type="boolean" required>
+  Whether this is a system permission that cannot be deleted
+</ParamField>
+
+## How Permissions Work
+
+<Steps>
+  <Step title="Permissions are Defined">
+    Permissions are initialized in the system with a specific name, description, and module type.
+  </Step>
+  
+  <Step title="Permissions are Grouped into Roles">
+    Multiple permissions are assigned to a role. A role represents a job function (e.g., "Loan Officer", "Teller").
+  </Step>
+  
+  <Step title="Users are Assigned Roles">
+    Each user is assigned exactly one role. The user inherits all permissions from that role.
+  </Step>
+  
+  <Step title="Permissions are Checked at Runtime">
+    When a user attempts an action, the system checks if their role includes the required permission.
+  </Step>
+</Steps>
+
+## Viewing Permissions
+
+To retrieve all available permissions in the system:
+
+```bash
+GET /api/permissions
+```
+
+Response format:
+```json
+[
+  {
+    "group": "User Management",
+    "permissions": [
+      "MAKER_FOR_USER",
+      "CHECKER_FOR_USER"
+    ]
+  },
+  {
+    "group": "Roles",
+    "permissions": [
+      "MAKER_FOR_ROLE",
+      "CHECKER_FOR_ROLE"
+    ]
+  }
+]
+```
+
+<Note>
+  Permissions are grouped by module or functional area for easier management.
+</Note>
+
+## Role Structure
+
+Roles are the central component of the access control system:
+
+<ParamField path="id" type="long">
+  Unique identifier for the role
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Unique name for the role (e.g., "Loan Officer", "Branch Manager")
+</ParamField>
+
+<ParamField path="permissions" type="Set<Permission>" required>
+  Collection of permissions assigned to this role
+</ParamField>
+
+<ParamField path="statusType" type="enum">
+  Role status: `ACTIVE` or `INACTIVE` (default: `ACTIVE`)
+</ParamField>
+
+<ParamField path="isSystem" type="boolean">
+  Whether this is a system-defined role that cannot be modified (default: `false`)
+</ParamField>
+
+## Managing Roles
+
+### Viewing Roles
+
+#### Get All Roles
+
+```bash
+GET /api/roles
+```
+
+Query parameters:
+- `show_all`: Boolean (default: `false`) - Include inactive roles
+
+#### Get Role by ID
+
+```bash
+GET /api/roles/{id}
+```
+
+Returns complete role details including all assigned permissions.
+
+### Creating a Role
+
+<Steps>
+  <Step title="Select Permissions">
+    Determine which permissions the role should have by reviewing available permissions.
+  </Step>
+  
+  <Step title="Submit Creation Request">
+    Submit a `POST` request to `/api/roles` with role details.
+    
+    ```json
+    {
+      "name": "Loan Officer",
+      "permissions": [
+        {"id": 1, "name": "VIEW_LOANS"},
+        {"id": 2, "name": "CREATE_LOANS"},
+        {"id": 3, "name": "MAKER_FOR_LOAN"}
+      ],
+      "statusType": "ACTIVE"
+    }
+    ```
+  </Step>
+  
+  <Step title="Approve the Request">
+    Role creation follows maker-checker workflow and requires approval.
+  </Step>
+</Steps>
+
+<Warning>
+  Creating roles requires the `MAKER_FOR_ROLE` permission. Role creation goes through the maker-checker approval process.
+</Warning>
+
+### Updating a Role
+
+<Steps>
+  <Step title="Retrieve Current Role">
+    Get the existing role details via `GET /api/roles/{id}`
+  </Step>
+  
+  <Step title="Modify Permissions">
+    Update the role name or adjust the assigned permissions.
+  </Step>
+  
+  <Step title="Submit Update Request">
+    Submit a `PUT` request to `/api/roles/{id}` with updated role data.
+  </Step>
+  
+  <Step title="Approve Changes">
+    Updates require checker approval before taking effect.
+  </Step>
+</Steps>
+
+<Warning>
+  System roles (where `isSystem=true`) cannot be modified or deleted.
+</Warning>
+
+## Permission Enforcement
+
+Permissions are enforced at the API level using the `@PermissionRequired` annotation:
+
+```java
+@PermissionRequired(name = "MAKER_FOR_USER", moduleType = ModuleType.MAKER_CHECKER)
+@PostMapping
+public RequestDto createUser(@RequestBody UserDto userDto) {
+    // Only users with MAKER_FOR_USER permission can execute this
+}
+```
+
+When a user attempts an action:
+1. The system extracts the user's role
+2. The role's permissions are checked against the required permission
+3. Access is granted only if the permission exists in the role
+
+## Common Permission Patterns
+
+### Maker-Checker Permissions
+
+Many operations follow the maker-checker pattern:
+- `MAKER_FOR_*`: Permission to initiate a request
+- `CHECKER_FOR_*`: Permission to approve/reject a request
+
+Examples:
+- `MAKER_FOR_USER` / `CHECKER_FOR_USER`
+- `MAKER_FOR_ROLE` / `CHECKER_FOR_ROLE`
+- `MAKER_FOR_LOAN` / `CHECKER_FOR_LOAN`
+
+### Module-Based Permissions
+
+Permissions are organized by module type:
+- `MAKER_CHECKER`: Maker-checker workflow permissions
+- `LOANS`: Loan-related permissions
+- `SAVINGS`: Savings account permissions
+- `BORROWINGS`: Borrowing operations
+- `BONDS`: Bond management
+- `TERM_DEPOSITS`: Term deposit permissions
+
+## Checking User Permissions
+
+You can programmatically check if a user has a specific permission:
+
+```java
+boolean hasPermission = user.hasPermission("VIEW_LOANS");
+```
+
+This method:
+1. Gets the user's role
+2. Retrieves all permissions associated with that role
+3. Checks if the specified permission exists
+
+## Role Status Management
+
+Roles can be set to different statuses:
+
+- **ACTIVE**: Role is available and can be assigned to users
+- **INACTIVE**: Role is disabled and should not be assigned to new users
+
+<Note>
+  Inactive roles do not prevent existing users from logging in, but should not be assigned to new users.
+</Note>
+
+## Role History & Audit
+
+All changes to roles are tracked and auditable:
+
+### Get Role History
+
+```bash
+GET /api/roles/{id}/history
+```
+
+Returns all historical revisions of the role.
+
+### Get Last Change
+
+```bash
+GET /api/roles/{id}/history/last_change?dateTime=2024-03-14T10:00:00
+```
+
+Returns the most recent change before the specified datetime.
+
+## Best Practices
+
+<Steps>
+  <Step title="Principle of Least Privilege">
+    Assign only the minimum permissions necessary for users to perform their job functions.
+  </Step>
+  
+  <Step title="Use Role-Based Design">
+    Design roles around job functions (e.g., "Teller", "Loan Officer") rather than individuals.
+  </Step>
+  
+  <Step title="Regular Audits">
+    Periodically review role permissions to ensure they remain appropriate.
+  </Step>
+  
+  <Step title="Document Custom Roles">
+    Maintain documentation of custom roles and their intended use cases.
+  </Step>
+  
+  <Step title="Test Permission Changes">
+    Test role modifications in a non-production environment before applying to production.
+  </Step>
+</Steps>
+
+## API Endpoints
+
+| Endpoint | Method | Description | Permission Required |
+|----------|--------|-------------|--------------------|
+| `/api/permissions` | GET | List all permissions | - |
+| `/api/roles` | GET | List all roles | - |
+| `/api/roles/{id}` | GET | Get role details | - |
+| `/api/roles` | POST | Create new role | `MAKER_FOR_ROLE` |
+| `/api/roles/{id}` | PUT | Update role | `MAKER_FOR_ROLE` |
+| `/api/roles/{id}/history` | GET | Get role history | - |
+
+<Warning>
+  All role modifications require maker-checker approval and are subject to audit logging.
+</Warning>
+
+## Related Documentation
+
+- [User Management](/admin/user-management) - Learn how to assign roles to users
+- [Global Settings](/admin/global-settings) - Configure system-wide settings

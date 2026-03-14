@@ -1,0 +1,314 @@
+---
+title: Core Module
+description: Foundation module providing core domain entities, services, and infrastructure
+---
+
+The `opencbs-core` module serves as the foundation for the OpenCBS Cloud platform, providing essential domain entities, services, repositories, and infrastructure components used across all other modules.
+
+## Overview
+
+The core module is organized into several key packages:
+
+<CardGroup cols={2}>
+  <Card title="Domain Entities" icon="database">
+    Core business entities like Profile, Branch, User, and Currency
+  </Card>
+  <Card title="Accounting Engine" icon="calculator">
+    Double-entry accounting system with accounts and entries
+  </Card>
+  <Card title="Security & Auth" icon="lock">
+    Role-based access control and user management
+  </Card>
+  <Card title="Schedule Generators" icon="calendar">
+    Flexible schedule generation algorithms for various frequencies
+  </Card>
+</CardGroup>
+
+## Core Domain Entities
+
+The core module defines fundamental domain entities that represent the basic building blocks of the system.
+
+### Profile
+
+The `Profile` entity is the base class for all customer types (persons, companies, groups). It uses single-table inheritance to support multiple profile types.
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/domain/profiles/Profile.java`
+
+```java
+@Entity
+@Table(name = "profiles")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "[type]", discriminatorType = DiscriminatorType.STRING)
+public class Profile extends CreationInfoEntity implements NamedEntity {
+    private String type;
+    private String name;
+    private EntityStatus status;
+    private Branch branch;
+    private Set<Account> currentAccounts;
+}
+```
+
+<Accordion title="Profile Hierarchy">
+  - **Profile** (base class)
+    - **Person** - Individual customers
+    - **Company** - Corporate customers
+    - **Group** - Group lending customers
+</Accordion>
+
+### Branch
+
+Represents organizational branches with hierarchical structure support.
+
+**Key Features:**
+- Multi-branch operations
+- Hierarchical organization
+- Branch-level reporting
+
+### User & Security
+
+The User entity represents system users with role-based access control.
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/domain/User.java`
+
+<Tabs>
+  <Tab title="Entities">
+    - **User** - System users with authentication
+    - **Role** - User roles for access control
+    - **Permission** - Granular permissions
+    - **PermissionRole** - Role-permission mapping
+  </Tab>
+  <Tab title="Services">
+    - **UserService** - User management operations
+    - **RoleService** - Role management
+    - **AuthenticationService** - Authentication logic
+  </Tab>
+</Tabs>
+
+## Services and Repositories
+
+### Base Service Pattern
+
+The core module establishes service patterns used throughout the application:
+
+```
+Controller → Service → Repository → Database
+```
+
+<CardGroup cols={2}>
+  <Card title="Services Layer">
+    Business logic and orchestration
+  </Card>
+  <Card title="Repository Layer">
+    Data access and persistence
+  </Card>
+  <Card title="Validators">
+    Input validation and business rules
+  </Card>
+  <Card title="Workers">
+    Background processing tasks
+  </Card>
+</CardGroup>
+
+### Key Services
+
+**ProfileWorker** - Profile management operations
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/workers/ProfileWorker.java`
+
+**LookupWorker** - Lookup data management
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/workers/LookupWorker.java`
+
+## Schedule Generation
+
+The core module provides a flexible schedule generation system supporting multiple algorithms and frequencies.
+
+### Schedule Generator Interface
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/services/schedulegenerators/ScheduleGenerator.java:9`
+
+```java
+public interface ScheduleGenerator {
+    RoundingMode ROUNDING_MODE = RoundingMode.HALF_EVEN;
+    int DECIMAL_PLACE = 2;
+    
+    List<Installment> getSchedule(ScheduleParams params);
+    int getDaysInPeriod();
+    ScheduleGeneratorTypes getType();
+}
+```
+
+### Supported Generator Types
+
+<Tabs>
+  <Tab title="Annuity">
+    Equal installments with decreasing interest and increasing principal.
+    
+    **Implementations:**
+    - Monthly (`AnnuityMonthlyGenerator`)
+    - Quarterly (`AnnuityQuarterlyGenerator`)
+    - Semi-annually (`AnnuitySemiannuallyGenerator`)
+    - Annually (`AnnuityAnnuallyGenerator`)
+    - Bi-weekly (`AnnuityBiweeklyGenerator`)
+  </Tab>
+  <Tab title="Fixed Principal">
+    Fixed principal amount with decreasing interest.
+    
+    **Implementations:**
+    - Monthly (`FixedPrincipalMonthlyGenerator`)
+    - Quarterly (`FixedPrincipalQuarterlyGenerator`)
+    - Annually (`FixedPrincipalAnnuallyGenerator`)
+    - Bi-weekly (`FixedPrincipalBiweeklyGenerator`)
+  </Tab>
+  <Tab title="Flat">
+    Equal principal and interest throughout the term.
+    
+    **Implementations:**
+    - Monthly (`FlatMonthlyGenerator`)
+    - Quarterly (`FlatQuarterlyGenerator`)
+    - Annually (`FlatAnnuallyGenerator`)
+    - Bi-annually (`FlatBiAnnuallyGenerator`)
+  </Tab>
+  <Tab title="Maturity">
+    Principal and interest paid at maturity.
+    
+    **Implementations:**
+    - Quarterly Actual/360 (`MaturityQuarterlyActual360Generator`)
+  </Tab>
+</Tabs>
+
+### Base Schedule Generator
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/services/schedulegenerators/BaseScheduleGenerator.java`
+
+Provides common functionality for all schedule generators:
+- Date calculation utilities
+- Interest calculation methods
+- Schedule validation
+- Rounding and precision handling
+
+## Configuration Management
+
+The core module provides system-wide configuration management.
+
+### Global Settings
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/domain/GlobalSettings.java`
+
+<Accordion title="Configuration Areas">
+  - **Date Format** - System date and time formats
+  - **Currency Settings** - Default currency and decimal places
+  - **Operational Settings** - Business day rules, holidays
+  - **System Behavior** - Feature flags and toggles
+</Accordion>
+
+## Validation Framework
+
+The core module establishes validation patterns for data integrity.
+
+### Validator Types
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/validators/`
+
+<CardGroup cols={2}>
+  <Card title="Base Validators">
+    **BaseValidator** - Common validation logic
+  </Card>
+  <Card title="Type Validators">
+    Field-specific validation (date, numeric, pattern)
+  </Card>
+  <Card title="Entity Validators">
+    Domain entity validation rules
+  </Card>
+  <Card title="Custom Field Validators">
+    Dynamic custom field validation
+  </Card>
+</CardGroup>
+
+### Custom Fields System
+
+Supports user-defined fields on core entities:
+
+**Validators:**
+- `PersonCustomFieldDtoValidator`
+- `CompanyCustomFieldDtoValidator`
+- `GroupCustomFieldDtoValidator`
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/validators/customfields/`
+
+## Audit and Analytics
+
+The core module provides comprehensive audit trails and analytics infrastructure.
+
+### Audit System
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/audit/`
+
+- Entity change tracking using Hibernate Envers
+- User action logging
+- Audit report generation
+
+### Analytics Foundation
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/analytics/`
+
+- Base analytics interfaces
+- Report generation framework
+- Data aggregation utilities
+
+## Operation Day Services
+
+Manages day-end processing and operational day closure.
+
+**ContractProcessService** - Processes contracts during day closure
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/services/operationdayservices/impl/ContractProcessServiceImpl.java`
+
+<Accordion title="Day Closure Process">
+  1. **Pre-closure Validation** - Ensure all transactions are complete
+  2. **Contract Processing** - Process accruals, provisions, penalties
+  3. **Accounting Entries** - Generate day-end accounting entries
+  4. **Post-closure Tasks** - Update balances and generate reports
+</Accordion>
+
+## Key Dependencies
+
+<CardGroup cols={2}>
+  <Card title="Spring Framework">
+    Core framework for dependency injection and web services
+  </Card>
+  <Card title="Hibernate/JPA">
+    ORM for database persistence
+  </Card>
+  <Card title="Flyway">
+    Database migration management
+  </Card>
+  <Card title="Lombok">
+    Code generation for boilerplate reduction
+  </Card>
+</CardGroup>
+
+## Module Architecture
+
+```
+opencbs-core/
+├── domain/              # Core entities
+│   ├── profiles/       # Profile types
+│   ├── enums/          # Enumerations
+│   └── json/           # JSON field types
+├── services/           # Business logic
+│   ├── schedulegenerators/
+│   └── operationdayservices/
+├── repositories/       # Data access
+├── validators/         # Validation logic
+├── workers/            # Background tasks
+├── accounting/         # Accounting subsystem
+├── audit/              # Audit trail
+└── analytics/          # Analytics framework
+```
+
+## Related Modules
+
+- [Loans Module](/development/modules/loans) - Extends core for loan management
+- [Savings Module](/development/modules/savings) - Extends core for savings accounts
+- [Accounting Module](/development/modules/accounting) - Detailed accounting engine documentation

@@ -1,0 +1,451 @@
+---
+title: 'Accounting Entries'
+description: 'Manage journal entries and transaction posting'
+---
+
+## Overview
+
+The Accounting Entries API provides endpoints for managing journal entries, posting transactions, and viewing account operations.
+
+## Get Accounting Entries
+
+<CodeGroup>
+```http GET /api/accounting/entries
+GET /api/accounting/entries?page={page}&size={size}&sort={field,direction}
+```
+</CodeGroup>
+
+Retrieve all accounting entries with pagination and sorting.
+
+### Query Parameters
+
+<ParamField query="page" type="integer">
+  Page number for pagination (0-based)
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Sort field and direction (e.g., "createdAt,desc")
+</ParamField>
+
+<ParamField query="fromDate" type="date">
+  Filter entries from this date
+</ParamField>
+
+<ParamField query="toDate" type="date">
+  Filter entries until this date
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of accounting entry objects
+  <ResponseField name="id" type="long">
+    Entry ID
+  </ResponseField>
+  <ResponseField name="amount" type="decimal">
+    Transaction amount
+  </ResponseField>
+  <ResponseField name="debitAccountId" type="long">
+    Debit account ID
+  </ResponseField>
+  <ResponseField name="creditAccountId" type="long">
+    Credit account ID
+  </ResponseField>
+  <ResponseField name="createdAt" type="datetime">
+    Entry creation timestamp
+  </ResponseField>
+  <ResponseField name="effectiveAt" type="datetime">
+    Effective date of the entry
+  </ResponseField>
+  <ResponseField name="description" type="string">
+    Entry description
+  </ResponseField>
+</ResponseField>
+
+## Create Accounting Entry
+
+<CodeGroup>
+```http POST /api/accounting/entry
+POST /api/accounting/entry
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "debitAccountId": 100,
+  "creditAccountId": 200,
+  "amount": 1000.00,
+  "description": "Payment received from customer",
+  "createdAt": "2026-03-14"
+}
+```
+</CodeGroup>
+
+Create a new accounting entry (journal entry) for posting transactions.
+
+### Request Body
+
+<ParamField body="debitAccountId" type="long" required>
+  ID of the account to debit
+</ParamField>
+
+<ParamField body="creditAccountId" type="long" required>
+  ID of the account to credit
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  Transaction amount (must be positive)
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Description of the transaction
+</ParamField>
+
+<ParamField body="createdAt" type="date" required>
+  Date of the transaction (ISO date format: YYYY-MM-DD)
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Created entry ID
+</ResponseField>
+
+<ResponseField name="amount" type="decimal">
+  Transaction amount
+</ResponseField>
+
+<ResponseField name="debitAccountId" type="long">
+  Debit account ID
+</ResponseField>
+
+<ResponseField name="creditAccountId" type="long">
+  Credit account ID
+</ResponseField>
+
+<ResponseField name="createdAt" type="datetime">
+  Entry creation timestamp
+</ResponseField>
+
+<ResponseField name="effectiveAt" type="datetime">
+  Effective date of the entry
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Entry description
+</ResponseField>
+
+<ResponseField name="createdBy" type="string">
+  Username of the creator
+</ResponseField>
+
+## Get Account Operations
+
+<CodeGroup>
+```http GET /api/accounting/accounts/{id}/operations
+GET /api/accounting/accounts/{id}/operations?from={date}&to={date}&page={page}&size={size}
+```
+</CodeGroup>
+
+Retrieve all operations (debits and credits) for a specific account within a date range.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Account ID
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="from" type="date" required>
+  Start date for operations (ISO date format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="to" type="date" required>
+  End date for operations (ISO date format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of account operation objects
+  <ResponseField name="date" type="date">
+    Operation date
+  </ResponseField>
+  <ResponseField name="debit" type="decimal">
+    Debit amount (if applicable)
+  </ResponseField>
+  <ResponseField name="credit" type="decimal">
+    Credit amount (if applicable)
+  </ResponseField>
+  <ResponseField name="balance" type="decimal">
+    Account balance after operation
+  </ResponseField>
+  <ResponseField name="description" type="string">
+    Operation description
+  </ResponseField>
+  <ResponseField name="entryId" type="long">
+    Related accounting entry ID
+  </ResponseField>
+</ResponseField>
+
+## Transfer to Current Account
+
+<CodeGroup>
+```http POST /api/accounting/accounts/{id}/transfer-to
+POST /api/accounting/accounts/{id}/transfer-to
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "fromAccountId": 300,
+  "amount": 500.00,
+  "description": "Transfer to current account"
+}
+```
+</CodeGroup>
+
+Transfer funds to a current account from another account.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  ID of the current account (destination)
+</ParamField>
+
+### Request Body
+
+<ParamField body="fromAccountId" type="long" required>
+  ID of the source account
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  Transfer amount (must be positive)
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Description of the transfer
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Created accounting entry ID
+</ResponseField>
+
+<ResponseField name="amount" type="decimal">
+  Transfer amount
+</ResponseField>
+
+<ResponseField name="debitAccountId" type="long">
+  Debit account ID
+</ResponseField>
+
+<ResponseField name="creditAccountId" type="long">
+  Credit account ID
+</ResponseField>
+
+<ResponseField name="createdAt" type="datetime">
+  Entry creation timestamp
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Transfer description
+</ResponseField>
+
+## Transfer from Current Account
+
+<CodeGroup>
+```http POST /api/accounting/accounts/{id}/transfer-from
+POST /api/accounting/accounts/{id}/transfer-from
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "toAccountId": 400,
+  "amount": 750.00,
+  "description": "Transfer from current account"
+}
+```
+</CodeGroup>
+
+Transfer funds from a current account to another account.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  ID of the current account (source)
+</ParamField>
+
+### Request Body
+
+<ParamField body="toAccountId" type="long" required>
+  ID of the destination account
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  Transfer amount (must be positive)
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Description of the transfer
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Created accounting entry ID
+</ResponseField>
+
+<ResponseField name="amount" type="decimal">
+  Transfer amount
+</ResponseField>
+
+<ResponseField name="debitAccountId" type="long">
+  Debit account ID
+</ResponseField>
+
+<ResponseField name="creditAccountId" type="long">
+  Credit account ID
+</ResponseField>
+
+<ResponseField name="createdAt" type="datetime">
+  Entry creation timestamp
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Transfer description
+</ResponseField>
+
+## Print Receipt for Multiple Transactions
+
+<CodeGroup>
+```http POST /api/accounting/multiple/printReceipt
+POST /api/accounting/multiple/printReceipt
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "transactions": [
+    {
+      "debitAccountId": 100,
+      "creditAccountId": 200,
+      "amount": 100.00,
+      "description": "Transaction 1"
+    },
+    {
+      "debitAccountId": 300,
+      "creditAccountId": 400,
+      "amount": 200.00,
+      "description": "Transaction 2"
+    }
+  ]
+}
+```
+</CodeGroup>
+
+Generate a receipt for multiple transactions.
+
+### Request Body
+
+<ParamField body="transactions" type="array" required>
+  Array of transaction objects
+  <ParamField body="debitAccountId" type="long" required>
+    Debit account ID
+  </ParamField>
+  <ParamField body="creditAccountId" type="long" required>
+    Credit account ID
+  </ParamField>
+  <ParamField body="amount" type="decimal" required>
+    Transaction amount
+  </ParamField>
+  <ParamField body="description" type="string" required>
+    Transaction description
+  </ParamField>
+</ParamField>
+
+### Response
+
+Returns a PDF receipt document.
+
+## Create Multiple Transactions
+
+<CodeGroup>
+```http POST /api/accounting/multiple
+POST /api/accounting/multiple
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "transactions": [
+    {
+      "debitAccountId": 100,
+      "creditAccountId": 200,
+      "amount": 100.00,
+      "description": "Transaction 1"
+    },
+    {
+      "debitAccountId": 300,
+      "creditAccountId": 400,
+      "amount": 200.00,
+      "description": "Transaction 2"
+    }
+  ],
+  "description": "Batch transaction posting",
+  "createdAt": "2026-03-14"
+}
+```
+</CodeGroup>
+
+Create multiple accounting entries in a single transaction batch.
+
+### Request Body
+
+<ParamField body="transactions" type="array" required>
+  Array of transaction objects (see structure above)
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Overall description for the batch
+</ParamField>
+
+<ParamField body="createdAt" type="date" required>
+  Date for the transactions
+</ParamField>
+
+### Response
+
+<ResponseField name="entries" type="array">
+  Array of created accounting entry objects
+  <ResponseField name="id" type="long">
+    Entry ID
+  </ResponseField>
+  <ResponseField name="amount" type="decimal">
+    Transaction amount
+  </ResponseField>
+  <ResponseField name="debitAccountId" type="long">
+    Debit account ID
+  </ResponseField>
+  <ResponseField name="creditAccountId" type="long">
+    Credit account ID
+  </ResponseField>
+  <ResponseField name="description" type="string">
+    Entry description
+  </ResponseField>
+</ResponseField>

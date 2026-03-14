@@ -1,0 +1,421 @@
+---
+title: 'Borrowings API'
+description: 'REST API endpoints for managing borrowing instruments'
+---
+
+## Overview
+
+The Borrowings API allows you to create and manage borrowing instruments (institutional borrowing/debt). All endpoints are located under `/api/borrowings`.
+
+## Create Borrowing
+
+<ParamField path="POST /api/borrowings" type="endpoint">
+  Creates a new borrowing instrument.
+</ParamField>
+
+### Request Body
+
+<ParamField body="profileId" type="long" required>
+  The ID of the profile (lender) associated with this borrowing
+</ParamField>
+
+<ParamField body="productId" type="long" required>
+  The ID of the borrowing product to use
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  The principal amount to borrow
+</ParamField>
+
+<ParamField body="interestRate" type="decimal" required>
+  The interest rate for the borrowing
+</ParamField>
+
+<ParamField body="maturityDate" type="date" required>
+  The maturity date of the borrowing
+</ParamField>
+
+<ParamField body="scheduleType" type="string" required>
+  The repayment schedule type (e.g., ANNUITY, EQUAL_INSTALLMENTS)
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  The unique identifier of the created borrowing
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the borrowing (e.g., PENDING, ACTIVE, CLOSED)
+</ResponseField>
+
+<ResponseField name="principal" type="decimal">
+  The principal amount
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/borrowings \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "profileId": 123,
+    "productId": 456,
+    "amount": 500000.00,
+    "interestRate": 7.5,
+    "maturityDate": "2031-03-14",
+    "scheduleType": "ANNUITY"
+  }'
+```
+
+```json Response
+{
+  "id": 789,
+  "profileId": 123,
+  "productId": 456,
+  "status": "PENDING",
+  "principal": 500000.00,
+  "interestRate": 7.5,
+  "maturityDate": "2031-03-14"
+}
+```
+</CodeGroup>
+
+## Update Borrowing
+
+<ParamField path="PUT /api/borrowings/{borrowingId}" type="endpoint">
+  Updates an existing borrowing. Only possible when status is PENDING.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing to update
+</ParamField>
+
+### Request Body
+
+Same as create endpoint.
+
+## Disburse Borrowing
+
+<ParamField path="POST /api/borrowings/{borrowingId}/disburse" type="endpoint">
+  Disburses (activates) the borrowing, making funds available.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing to disburse
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/borrowings/789/disburse \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "ACTIVE",
+  "disbursementDate": "2026-03-14T10:00:00"
+}
+```
+</CodeGroup>
+
+## Preview Borrowing Schedule
+
+<ParamField path="POST /api/borrowings/preview" type="endpoint">
+  Previews the repayment schedule for a borrowing before creation.
+</ParamField>
+
+### Request Body
+
+Same as create endpoint.
+
+### Response
+
+<ResponseField name="rows" type="array">
+  Array of scheduled installments
+</ResponseField>
+
+<ResponseField name="rows[].number" type="integer">
+  Installment number
+</ResponseField>
+
+<ResponseField name="rows[].maturityDate" type="date">
+  Payment due date
+</ResponseField>
+
+<ResponseField name="rows[].principal" type="decimal">
+  Principal amount due
+</ResponseField>
+
+<ResponseField name="rows[].interest" type="decimal">
+  Interest amount due
+</ResponseField>
+
+<ResponseField name="rows[].totalDue" type="decimal">
+  Total payment due
+</ResponseField>
+
+## Get All Borrowings
+
+<ParamField path="GET /api/borrowings" type="endpoint">
+  Retrieves all borrowings with optional search.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Optional search string to filter results
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (0-based)
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.opencbs.com/api/borrowings?page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "content": [
+    {
+      "id": 789,
+      "profileId": 123,
+      "status": "ACTIVE",
+      "principal": 500000.00,
+      "interestRate": 7.5
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+</CodeGroup>
+
+## Get Borrowing by ID
+
+<ParamField path="GET /api/borrowings/{borrowingId}" type="endpoint">
+  Retrieves a specific borrowing by ID.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing
+</ParamField>
+
+## Get Borrowings by Profile
+
+<ParamField path="GET /api/borrowings/by-profile/{profileId}" type="endpoint">
+  Retrieves all borrowings for a specific profile (lender).
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="profileId" type="long" required>
+  The ID of the profile
+</ParamField>
+
+## Get Borrowing Schedule
+
+<ParamField path="GET /api/borrowings/{borrowingId}/schedule" type="endpoint">
+  Retrieves the repayment schedule for a borrowing.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing
+</ParamField>
+
+## Borrowing Repayment
+
+<ParamField path="POST /api/borrowings/{borrowingId}/repayment/repay" type="endpoint">
+  Processes a repayment for the borrowing.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing
+</ParamField>
+
+### Request Body
+
+<ParamField body="timestamp" type="datetime" required>
+  The timestamp of the repayment
+</ParamField>
+
+<ParamField body="total" type="decimal" required>
+  The total repayment amount
+</ParamField>
+
+<ParamField body="repaymentType" type="string" required>
+  Type of repayment (e.g., NORMAL_REPAYMENT, EARLY_PARTIAL_REPAYMENT)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/borrowings/789/repayment/repay \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timestamp": "2026-06-14T10:00:00",
+    "total": 15000.00,
+    "repaymentType": "NORMAL_REPAYMENT"
+  }'
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "ACTIVE",
+  "paidPrincipal": 10000.00,
+  "paidInterest": 5000.00,
+  "olb": 490000.00
+}
+```
+</CodeGroup>
+
+## Preview Repayment
+
+<ParamField path="POST /api/borrowings/{borrowingId}/repayment/preview" type="endpoint">
+  Previews how a repayment will be split across principal and interest.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing
+</ParamField>
+
+### Request Body
+
+Same as repay endpoint.
+
+## Split Repayment
+
+<ParamField path="POST /api/borrowings/{borrowingId}/repayment/split" type="endpoint">
+  Calculates how a repayment amount will be split.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing
+</ParamField>
+
+### Request Body
+
+Same as repay endpoint.
+
+## Get Borrowing Events
+
+<ParamField path="GET /api/borrowings/{borrowingId}/events" type="endpoint">
+  Retrieves all events (transactions) for a borrowing.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing
+</ParamField>
+
+### Response
+
+<ResponseField name="events" type="array">
+  Array of borrowing events
+</ResponseField>
+
+<ResponseField name="events[].id" type="long">
+  Event ID
+</ResponseField>
+
+<ResponseField name="events[].eventType" type="string">
+  Type of event (e.g., DISBURSEMENT, REPAYMENT, ACCRUAL_OF_INTEREST)
+</ResponseField>
+
+<ResponseField name="events[].amount" type="decimal">
+  Transaction amount
+</ResponseField>
+
+<ResponseField name="events[].effectiveAt" type="datetime">
+  When the event occurred
+</ResponseField>
+
+## Roll Back Events
+
+<ParamField path="POST /api/borrowings/{borrowingId}/roll-back" type="endpoint">
+  Rolls back the most recent event on the borrowing.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing
+</ParamField>
+
+### Request Body
+
+<ParamField body="comment" type="string" required>
+  Comment explaining the reason for rollback
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/borrowings/789/roll-back \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "comment": "Incorrect payment amount entered"
+  }'
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "ACTIVE",
+  "lastEventRolledBack": true
+}
+```
+</CodeGroup>
+
+## Actualize Borrowing
+
+<ParamField path="POST /api/borrowings/actualize/{borrowingId}" type="endpoint">
+  Actualizes the borrowing to a specific date (processes accruals, late fees).
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="borrowingId" type="long" required>
+  The ID of the borrowing to actualize
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="date" type="date" required>
+  The date to actualize to (ISO date format)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.opencbs.com/api/borrowings/actualize/789?date=2026-04-14" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+"Actualize borrowing started"
+```
+</CodeGroup>

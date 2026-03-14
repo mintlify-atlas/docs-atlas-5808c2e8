@@ -1,0 +1,404 @@
+---
+title: "Companies API"
+description: "Manage company profiles in OpenCBS"
+---
+
+## Overview
+
+The Companies API enables you to create, retrieve, update, and manage company profiles. Companies are organizational entities that can have members, accounts, and custom fields.
+
+## Get Company by ID
+
+<CodeGroup>
+```bash GET /api/profiles/companies/{id}
+curl -X GET "https://api.opencbs.com/api/profiles/companies/123" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve detailed information about a specific company.
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the company
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Company identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Company name
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status: `LIVE`, `PENDING`, `DEAD`
+</ResponseField>
+
+<ResponseField name="attachments" type="array">
+  List of document attachments
+  <Expandable title="Attachment Object">
+    <ResponseField name="id" type="long">
+      Attachment identifier
+    </ResponseField>
+    <ResponseField name="filename" type="string">
+      Original filename
+    </ResponseField>
+    <ResponseField name="contentType" type="string">
+      MIME type of the file
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="customFieldSections" type="array">
+  Custom field sections containing dynamic form data
+</ResponseField>
+
+<ResponseField name="currentAccounts" type="array">
+  List of accounts associated with this company
+</ResponseField>
+
+<ResponseField name="companyMembers" type="array">
+  List of people who are members of this company
+  <Expandable title="Member Object">
+    <ResponseField name="id" type="long">
+      Member profile ID
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Member name
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="isReadOnly" type="boolean">
+  Whether the company can be edited
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  ```json
+  {
+    "message": "Company not found (ID=123)."
+  }
+  ```
+</ResponseField>
+
+---
+
+## Search Companies
+
+<CodeGroup>
+```bash GET /api/profiles/companies/lookup
+curl -X GET "https://api.opencbs.com/api/profiles/companies/lookup?search=Tech&page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Search and retrieve a paginated list of companies.
+
+<ParamField query="search" type="string">
+  Search string to filter companies by name or other fields
+</ParamField>
+
+<ParamField query="page" type="integer" default="0">
+  Page number (zero-based)
+</ParamField>
+
+<ParamField query="size" type="integer" default="20">
+  Number of items per page
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of company detail objects (same structure as GET by ID)
+</ResponseField>
+
+<ResponseField name="totalElements" type="long">
+  Total number of companies matching the search
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer">
+  Total number of pages
+</ResponseField>
+
+---
+
+## Create Company
+
+<CodeGroup>
+```bash POST /api/profiles/companies
+curl -X POST "https://api.opencbs.com/api/profiles/companies" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fieldValues": [
+      {
+        "fieldId": 1,
+        "code": "company_name",
+        "value": "Tech Innovations Ltd"
+      },
+      {
+        "fieldId": 2,
+        "code": "registration_number",
+        "value": "REG-12345"
+      }
+    ],
+    "branch": {
+      "id": 1
+    }
+  }'
+```
+</CodeGroup>
+
+Create a new company profile. This creates a maker-checker request that must be approved.
+
+### Request Body
+
+<ParamField body="fieldValues" type="array" required>
+  Array of custom field values for the company
+  <Expandable title="Field Value Object">
+    <ParamField body="fieldId" type="long">
+      The custom field identifier
+    </ParamField>
+    <ParamField body="code" type="string">
+      Field code for identification
+    </ParamField>
+    <ParamField body="value" type="string">
+      The value for this field
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="branch" type="object" required>
+  Branch assignment
+  <Expandable title="Branch Object">
+    <ParamField body="id" type="long">
+      Branch identifier
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  The maker-checker request ID (not the company ID). This request must be approved before the company is created.
+</ResponseField>
+
+### Permissions
+
+Requires `MAKER_FOR_COMPANY` permission with `ModuleType.MAKER_CHECKER`.
+
+---
+
+## Update Company
+
+<CodeGroup>
+```bash PUT /api/profiles/companies/{id}
+curl -X PUT "https://api.opencbs.com/api/profiles/companies/123" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fieldValues": [
+      {
+        "fieldId": 1,
+        "code": "company_name",
+        "value": "Tech Innovations Corporation"
+      }
+    ],
+    "branch": {
+      "id": 1
+    }
+  }'
+```
+</CodeGroup>
+
+Update an existing company. Creates a maker-checker request for the update.
+
+<ParamField path="id" type="long" required>
+  Company identifier
+</ParamField>
+
+### Request Body
+
+Same as Create Company request body.
+
+### Response
+
+<ResponseField name="id" type="long">
+  The maker-checker request ID for this update
+</ResponseField>
+
+### Permissions
+
+Requires `MAKER_FOR_COMPANY` permission.
+
+---
+
+## Create Current Account
+
+<CodeGroup>
+```bash POST /api/profiles/companies/{id}/account
+curl -X POST "https://api.opencbs.com/api/profiles/companies/123/account?currencyId=1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Create a current account for a company in a specific currency.
+
+<ParamField path="id" type="long" required>
+  Company identifier
+</ParamField>
+
+<ParamField query="currencyId" type="long" required>
+  Currency identifier for the new account
+</ParamField>
+
+### Response
+
+Returns the updated company detail object including the newly created account.
+
+---
+
+## Get Company Accounts
+
+<CodeGroup>
+```bash GET /api/profiles/companies/{id}/accounts
+curl -X GET "https://api.opencbs.com/api/profiles/companies/123/accounts" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve all current accounts for a company.
+
+<ParamField path="id" type="long" required>
+  Company identifier
+</ParamField>
+
+### Response
+
+<ResponseField name="accounts" type="array">
+  Array of account objects
+  <Expandable title="Profile Account">
+    <ResponseField name="id" type="long">
+      Account identifier
+    </ResponseField>
+    <ResponseField name="number" type="string">
+      Account number
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Account name
+    </ResponseField>
+    <ResponseField name="balance" type="decimal">
+      Current account balance
+    </ResponseField>
+    <ResponseField name="currency" type="object">
+      Currency information
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Add Member to Company
+
+<CodeGroup>
+```bash POST /api/profiles/companies/{id}/members/add/{memberId}
+curl -X POST "https://api.opencbs.com/api/profiles/companies/123/members/add/456" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Add a person as a member of the company.
+
+<ParamField path="id" type="long" required>
+  Company identifier
+</ParamField>
+
+<ParamField path="memberId" type="long" required>
+  Profile ID of the person to add as a member
+</ParamField>
+
+### Response
+
+Returns the updated company detail object including the new member in the `companyMembers` array.
+
+### Error Responses
+
+<ResponseField name="400" type="error">
+  Validation error - member may already be in the company or other validation rules failed
+</ResponseField>
+
+---
+
+## Remove Member from Company
+
+<CodeGroup>
+```bash POST /api/profiles/companies/{id}/members/remove/{memberId}
+curl -X POST "https://api.opencbs.com/api/profiles/companies/123/members/remove/456" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Remove a member from the company.
+
+<ParamField path="id" type="long" required>
+  Company identifier
+</ParamField>
+
+<ParamField path="memberId" type="long" required>
+  Profile ID of the member to remove
+</ParamField>
+
+### Response
+
+Returns the updated company detail object.
+
+---
+
+## Get Available Members
+
+<CodeGroup>
+```bash GET /api/profiles/companies/{companyId}/members/lookup
+curl -X GET "https://api.opencbs.com/api/profiles/companies/123/members/lookup?search=John&page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get all persons who can be added as members (excluding existing members).
+
+<ParamField path="companyId" type="long" required>
+  Company identifier
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search filter for person names
+</ParamField>
+
+<ParamField query="page" type="integer" default="0">
+  Page number
+</ParamField>
+
+<ParamField query="size" type="integer" default="20">
+  Page size
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of profile objects representing people who can be added
+</ResponseField>
+
+---
+
+## Common Error Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | Bad Request - Invalid input or validation failure |
+| 401 | Unauthorized - Missing or invalid token |
+| 403 | Forbidden - Insufficient permissions |
+| 404 | Not Found - Company does not exist |
+| 500 | Internal Server Error |

@@ -1,0 +1,242 @@
+---
+title: Local Development Setup
+description: Set up your local development environment for OpenCBS Cloud
+---
+
+This guide will help you set up your local development environment for OpenCBS Cloud.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install Java Development Kit">
+    OpenCBS Cloud requires Java 8 or higher.
+    
+    ```bash
+    # Verify Java installation
+    java -version
+    ```
+    
+    <Note>
+      The server components are built with Java 8. Ensure `JAVA_HOME` is properly configured.
+    </Note>
+  </Step>
+
+  <Step title="Install Maven">
+    Maven is required for building the server components.
+    
+    ```bash
+    # Verify Maven installation
+    mvn -version
+    ```
+  </Step>
+
+  <Step title="Install Node.js and npm">
+    The Angular client requires Node.js (version 10.x or higher recommended).
+    
+    ```bash
+    # Verify Node.js installation
+    node --version
+    npm --version
+    ```
+  </Step>
+
+  <Step title="Install PostgreSQL">
+    OpenCBS Cloud uses PostgreSQL as its database.
+    
+    ```bash
+    # Verify PostgreSQL installation
+    psql --version
+    ```
+    
+    <Note>
+      PostgreSQL 9.6 or higher is recommended.
+    </Note>
+  </Step>
+</Steps>
+
+## Database Setup
+
+<Steps>
+  <Step title="Create Database">
+    Create a new PostgreSQL database for OpenCBS:
+    
+    ```sql
+    CREATE DATABASE opencbs;
+    CREATE USER opencbs_user WITH PASSWORD 'your_password';
+    GRANT ALL PRIVILEGES ON DATABASE opencbs TO opencbs_user;
+    ```
+  </Step>
+
+  <Step title="Configure Database Connection">
+    Create an application properties file in `server/opencbs-server/src/main/resources/`:
+    
+    ```properties application.properties
+    spring.datasource.url=jdbc:postgresql://localhost:5432/opencbs
+    spring.datasource.username=opencbs_user
+    spring.datasource.password=your_password
+    spring.jpa.hibernate.ddl-auto=none
+    spring.flyway.enabled=true
+    ```
+    
+    <Note>
+      OpenCBS uses Flyway for database migrations. The schema will be created automatically on first startup.
+    </Note>
+  </Step>
+</Steps>
+
+## IDE Configuration
+
+### IntelliJ IDEA
+
+<Steps>
+  <Step title="Import Project">
+    1. Open IntelliJ IDEA
+    2. Select **File > Open**
+    3. Navigate to the `server` directory
+    4. Select the root `pom.xml` file
+    5. Click **Open as Project**
+  </Step>
+
+  <Step title="Enable Annotation Processing">
+    OpenCBS uses Lombok and MapStruct for code generation.
+    
+    1. Go to **Settings > Build, Execution, Deployment > Compiler > Annotation Processors**
+    2. Check **Enable annotation processing**
+    3. Apply and restart IDE if prompted
+  </Step>
+
+  <Step title="Install Lombok Plugin">
+    1. Go to **Settings > Plugins**
+    2. Search for "Lombok"
+    3. Install and restart IDE
+  </Step>
+</Steps>
+
+### VS Code
+
+<Steps>
+  <Step title="Install Extensions">
+    Install the following extensions:
+    - Java Extension Pack
+    - Spring Boot Extension Pack
+    - Angular Language Service
+    - Lombok Annotations Support
+  </Step>
+
+  <Step title="Configure Java">
+    Create or update `.vscode/settings.json`:
+    
+    ```json
+    {
+      "java.configuration.updateBuildConfiguration": "automatic",
+      "java.home": "/path/to/jdk-8"
+    }
+    ```
+  </Step>
+</Steps>
+
+## Clone and Install Dependencies
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone <repository-url>
+    cd opencbs-cloud
+    ```
+  </Step>
+
+  <Step title="Install Server Dependencies">
+    Navigate to the server directory and install Maven dependencies:
+    
+    ```bash
+    cd server
+    mvn clean install -DskipTests
+    ```
+    
+    This will download all required dependencies for the Spring Boot application.
+  </Step>
+
+  <Step title="Install Client Dependencies">
+    Navigate to the client directory and install npm packages:
+    
+    ```bash
+    cd ../client
+    npm install
+    ```
+    
+    <Note>
+      The initial npm install may take several minutes to complete.
+    </Note>
+  </Step>
+</Steps>
+
+## Running Locally
+
+### Server
+
+<CodeGroup>
+```bash Maven
+# From the server directory
+mvn spring-boot:run
+```
+
+```bash IDE
+# Run the main application class
+# Usually located at: server/opencbs-server/src/main/java/.../Application.java
+```
+</CodeGroup>
+
+The server will start on `http://localhost:8080`
+
+### Client
+
+```bash
+# From the client directory
+npm start
+```
+
+The Angular development server will start on `http://localhost:4200`
+
+<Note>
+  Make sure the backend server is running before starting the client application.
+</Note>
+
+## Verification
+
+Once both server and client are running:
+
+1. Navigate to `http://localhost:4200` in your browser
+2. You should see the OpenCBS login page
+3. Check the browser console for any errors
+4. Verify the server logs show successful startup
+
+## Common Issues
+
+### Database Connection Failed
+
+- Verify PostgreSQL is running: `sudo systemctl status postgresql`
+- Check database credentials in application properties
+- Ensure the database exists and user has proper permissions
+
+### Maven Build Failures
+
+- Clear Maven cache: `mvn clean`
+- Delete `.m2/repository` and re-run `mvn install`
+- Check Java version: `java -version`
+
+### Node Module Issues
+
+- Clear npm cache: `npm cache clean --force`
+- Delete `node_modules` folder and `package-lock.json`
+- Re-run `npm install`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Building" icon="hammer" href="/development/building">
+    Learn how to build production-ready artifacts
+  </Card>
+  <Card title="Testing" icon="flask" href="/development/testing">
+    Run tests and ensure code quality
+  </Card>
+</CardGroup>

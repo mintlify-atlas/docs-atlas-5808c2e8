@@ -1,0 +1,693 @@
+---
+title: Deployment
+description: Deploy OpenCBS Cloud using Docker containers or manual deployment methods
+---
+
+# Deployment
+
+This guide covers deploying OpenCBS Cloud in various environments using Docker containers or manual deployment methods.
+
+## Deployment Overview
+
+OpenCBS Cloud consists of three main components:
+
+1. **Backend Server**: Spring Boot application (Java 8)
+2. **Frontend Client**: Angular application served by Nginx
+3. **Database**: PostgreSQL 9.4+
+
+## Docker Deployment (Recommended)
+
+Docker provides the easiest way to deploy OpenCBS Cloud with all dependencies properly configured.
+
+### Prerequisites
+
+<Steps>
+  <Step title="Install Docker">
+    <CodeGroup>
+      ```bash Ubuntu/Debian
+      sudo apt update
+      sudo apt install docker.io docker-compose
+      sudo systemctl start docker
+      sudo systemctl enable docker
+      sudo usermod -aG docker $USER
+      ```
+
+      ```bash macOS
+      # Install Docker Desktop from docker.com
+      # Or use Homebrew
+      brew install --cask docker
+      ```
+
+      ```bash Windows
+      # Download and install Docker Desktop from docker.com
+      # Or use Chocolatey
+      choco install docker-desktop
+      ```
+    </CodeGroup>
+
+    <Note>
+      After installation, log out and log back in for group membership changes to take effect.
+    </Note>
+  </Step>
+
+  <Step title="Verify Docker Installation">
+    ```bash
+    docker --version
+    docker-compose --version
+    ```
+  </Step>
+</Steps>
+
+### Build Docker Images
+
+<Steps>
+  <Step title="Build the Backend">
+    First, build the application JAR file:
+
+    ```bash
+    # Navigate to project root
+    cd opencbs-cloud
+
+    # Build using the build script
+    ./build.sh 1.0.0 server
+    ```
+
+    This script builds all modules in the correct order:
+    - opencbs-spring-boot-starter
+    - opencbs-core
+    - opencbs-loans
+    - opencbs-borrowings
+    - opencbs-savings
+    - opencbs-term-deposits
+    - opencbs-bonds
+    - opencbs-server
+
+    <Note>
+      The build script requires two arguments: version number (e.g., 1.0.0) and instance name (e.g., server).
+    </Note>
+  </Step>
+
+  <Step title="Build the Frontend">
+    ```bash
+    cd client
+    yarn install
+    yarn build-prod
+    ```
+
+    This creates an optimized production build in the `client/dist` directory.
+
+    <Warning>
+      The production build requires up to 16GB of memory. If you encounter out-of-memory errors, increase Node.js memory limit:
+      ```bash
+      export NODE_OPTIONS="--max-old-space-size=16384"
+      yarn build-prod
+      ```
+    </Warning>
+  </Step>
+
+  <Step title="Build Docker Images">
+    <CodeGroup>
+      ```bash Build Backend Image
+      cd server/opencbs-server
+      docker build -t opencbs-backend:1.0.0 .
+      ```
+
+      ```bash Build Frontend Image
+      cd client
+      docker build -t opencbs-frontend:1.0.0 .
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+### Docker Compose Setup
+
+Create a `docker-compose.yml` file to orchestrate all services:
+
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:12-alpine
+    container_name: opencbs-postgres
+    environment:
+      POSTGRES_DB: opencbs_cloud
+      POSTGRES_USER: opencbs_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - opencbs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opencbs_user -d opencbs_cloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: opencbs-backend:1.0.0
+    container_name: opencbs-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/opencbs_cloud
+      SPRING_DATASOURCE_USERNAME: opencbs_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    networks:
+      - opencbs-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    image: opencbs-frontend:1.0.0
+    container_name: opencbs-frontend
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    networks:
+      - opencbs-network
+
+networks:
+  opencbs-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+```
+
+### Environment Variables
+
+Create a `.env` file for sensitive configuration:
+
+```bash .env
+# Database Configuration
+DB_PASSWORD=your_secure_database_password
+
+# Security
+JWT_SECRET=your_secure_jwt_secret_minimum_256_bits
+
+# Optional: Mail Configuration
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=noreply@example.com
+MAIL_PASSWORD=your_mail_password
+```
+
+<Warning>
+  Never commit the `.env` file to version control. Add it to `.gitignore`.
+</Warning>
+
+### Deploy with Docker Compose
+
+<Steps>
+  <Step title="Start All Services">
+    ```bash
+    docker-compose up -d
+    ```
+
+    This starts all services in detached mode:
+    - PostgreSQL database on port 5432
+    - Backend API on port 8080
+    - Frontend on port 80
+  </Step>
+
+  <Step title="Monitor Logs">
+    <CodeGroup>
+      ```bash All Services
+      docker-compose logs -f
+      ```
+
+      ```bash Specific Service
+      docker-compose logs -f api
+      docker-compose logs -f frontend
+      docker-compose logs -f postgres
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Verify Deployment">
+    Check that all containers are running:
+
+    ```bash
+    docker-compose ps
+    ```
+
+    Test the services:
+
+    <CodeGroup>
+      ```bash Health Check
+      # Backend health
+      curl http://localhost:8080/api/health
+
+      # Frontend
+      curl http://localhost:80
+      ```
+
+      ```bash Database Connection
+      docker exec -it opencbs-postgres psql -U opencbs_user -d opencbs_cloud -c "SELECT version();"
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+### Docker Commands
+
+<CodeGroup>
+  ```bash Start Services
+  docker-compose up -d
+  ```
+
+  ```bash Stop Services
+  docker-compose down
+  ```
+
+  ```bash Restart Services
+  docker-compose restart
+  ```
+
+  ```bash View Logs
+  docker-compose logs -f [service_name]
+  ```
+
+  ```bash Execute Commands in Container
+  docker exec -it opencbs-api /bin/sh
+  docker exec -it opencbs-postgres psql -U opencbs_user -d opencbs_cloud
+  ```
+
+  ```bash Remove Containers and Volumes
+  docker-compose down -v
+  ```
+</CodeGroup>
+
+## Manual Deployment
+
+For environments where Docker is not available, you can deploy manually.
+
+### Build the Application
+
+<Steps>
+  <Step title="Build Backend JAR">
+    ```bash
+    # Using the build script (recommended)
+    ./build.sh 1.0.0 server
+
+    # Or manually
+    mvn -f ./server/opencbs-spring-boot-starter/pom.xml clean install -DskipTests
+    mvn -f ./server/opencbs-core/pom.xml clean install -DskipTests
+    mvn -f ./server/opencbs-loans/pom.xml clean install -DskipTests
+    mvn -f ./server/opencbs-borrowings/pom.xml clean install -DskipTests
+    mvn -f ./server/opencbs-savings/pom.xml clean install -DskipTests
+    mvn -f ./server/opencbs-term-deposits/pom.xml clean install -DskipTests
+    mvn -f ./server/opencbs-bonds/pom.xml clean install -DskipTests
+    mvn -f ./server/opencbs-server/pom_backend.xml clean install jar:jar -DBUILD_VERSION=1.0.0
+    ```
+
+    The JAR file will be created at `server/opencbs-server/target/opencbs-server-1.0.0.jar`
+  </Step>
+
+  <Step title="Build Frontend">
+    ```bash
+    cd client
+    yarn install
+    yarn build-prod
+    ```
+
+    The production build will be in `client/dist/`
+  </Step>
+</Steps>
+
+### Deploy Backend
+
+<Steps>
+  <Step title="Create Application Directory">
+    ```bash
+    sudo mkdir -p /opt/opencbs
+    sudo chown $USER:$USER /opt/opencbs
+    ```
+  </Step>
+
+  <Step title="Copy Application Files">
+    ```bash
+    cp server/opencbs-server/target/opencbs-server-1.0.0.jar /opt/opencbs/
+    cp server/opencbs-server/src/main/resources/application.properties /opt/opencbs/
+    ```
+  </Step>
+
+  <Step title="Configure Application">
+    Edit `/opt/opencbs/application.properties` with your database and server settings:
+
+    ```properties
+    spring.datasource.url=jdbc:postgresql://localhost:5432/opencbs_cloud
+    spring.datasource.username=opencbs_user
+    spring.datasource.password=your_secure_password
+    server.port=8080
+    ```
+  </Step>
+
+  <Step title="Create Systemd Service">
+    Create `/etc/systemd/system/opencbs.service`:
+
+    ```ini
+    [Unit]
+    Description=OpenCBS Cloud Backend
+    After=postgresql.service
+    Requires=postgresql.service
+
+    [Service]
+    Type=simple
+    User=opencbs
+    WorkingDirectory=/opt/opencbs
+    ExecStart=/usr/bin/java -Xmx2048m -Xms512m -jar /opt/opencbs/opencbs-server-1.0.0.jar --spring.config.location=/opt/opencbs/application.properties
+    Restart=on-failure
+    RestartSec=10
+    StandardOutput=journal
+    StandardError=journal
+    SyslogIdentifier=opencbs
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+    Enable and start the service:
+
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable opencbs
+    sudo systemctl start opencbs
+    sudo systemctl status opencbs
+    ```
+  </Step>
+</Steps>
+
+### Deploy Frontend with Nginx
+
+<Steps>
+  <Step title="Install Nginx">
+    <CodeGroup>
+      ```bash Ubuntu/Debian
+      sudo apt update
+      sudo apt install nginx
+      sudo systemctl start nginx
+      sudo systemctl enable nginx
+      ```
+
+      ```bash CentOS/RHEL
+      sudo yum install nginx
+      sudo systemctl start nginx
+      sudo systemctl enable nginx
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Deploy Frontend Files">
+    ```bash
+    sudo mkdir -p /var/www/opencbs
+    sudo cp -r client/dist/* /var/www/opencbs/
+    sudo chown -R www-data:www-data /var/www/opencbs
+    ```
+  </Step>
+
+  <Step title="Configure Nginx">
+    Create `/etc/nginx/sites-available/opencbs`:
+
+    ```nginx
+    upstream opencbs_api {
+        server localhost:8080;
+    }
+
+    server {
+        listen 80;
+        server_name your-domain.com;
+
+        root /var/www/opencbs;
+        index index.html;
+
+        # Frontend routes
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # API proxy
+        location /api {
+            proxy_pass http://opencbs_api;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Gzip compression
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+    }
+    ```
+
+    Enable the site:
+
+    ```bash
+    sudo ln -s /etc/nginx/sites-available/opencbs /etc/nginx/sites-enabled/
+    sudo nginx -t
+    sudo systemctl reload nginx
+    ```
+  </Step>
+</Steps>
+
+## Production Considerations
+
+### Security
+
+<AccordionGroup>
+  <Accordion title="Enable HTTPS with SSL/TLS">
+    Use Let's Encrypt for free SSL certificates:
+
+    ```bash
+    sudo apt install certbot python3-certbot-nginx
+    sudo certbot --nginx -d your-domain.com
+    sudo systemctl reload nginx
+    ```
+
+    Certbot will automatically configure Nginx for HTTPS and set up auto-renewal.
+  </Accordion>
+
+  <Accordion title="Configure Firewall">
+    ```bash
+    # Ubuntu/Debian with UFW
+    sudo ufw allow 80/tcp
+    sudo ufw allow 443/tcp
+    sudo ufw enable
+
+    # CentOS/RHEL with firewalld
+    sudo firewall-cmd --permanent --add-service=http
+    sudo firewall-cmd --permanent --add-service=https
+    sudo firewall-cmd --reload
+    ```
+  </Accordion>
+
+  <Accordion title="Secure Database Access">
+    Configure PostgreSQL to only accept connections from the application server:
+
+    Edit `/etc/postgresql/12/main/pg_hba.conf`:
+
+    ```
+    # Allow local connections
+    local   opencbs_cloud   opencbs_user                    md5
+    host    opencbs_cloud   opencbs_user    127.0.0.1/32    md5
+    host    opencbs_cloud   opencbs_user    ::1/128         md5
+    ```
+
+    Restart PostgreSQL:
+
+    ```bash
+    sudo systemctl restart postgresql
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Performance
+
+<Steps>
+  <Step title="Optimize JVM Settings">
+    For production, tune JVM parameters based on available memory:
+
+    ```bash
+    # For 4GB server
+    java -Xmx3072m -Xms1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -jar opencbs-server.jar
+
+    # For 8GB server
+    java -Xmx6144m -Xms2048m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -jar opencbs-server.jar
+    ```
+  </Step>
+
+  <Step title="Configure Database Connection Pooling">
+    ```properties
+    spring.datasource.hikari.maximum-pool-size=20
+    spring.datasource.hikari.minimum-idle=5
+    spring.datasource.hikari.connection-timeout=30000
+    spring.datasource.hikari.idle-timeout=600000
+    spring.datasource.hikari.max-lifetime=1800000
+    ```
+  </Step>
+
+  <Step title="Enable Nginx Caching">
+    Add to your Nginx configuration:
+
+    ```nginx
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    ```
+  </Step>
+</Steps>
+
+### Monitoring
+
+<CodeGroup>
+  ```bash Application Logs
+  # Systemd service
+  sudo journalctl -u opencbs -f
+
+  # Docker
+  docker-compose logs -f api
+  ```
+
+  ```bash Nginx Logs
+  sudo tail -f /var/log/nginx/access.log
+  sudo tail -f /var/log/nginx/error.log
+  ```
+
+  ```bash Database Logs
+  sudo tail -f /var/log/postgresql/postgresql-12-main.log
+  ```
+</CodeGroup>
+
+### Backup Strategy
+
+<Steps>
+  <Step title="Database Backups">
+    Create automated PostgreSQL backups:
+
+    ```bash
+    # Create backup script
+    cat > /opt/opencbs/backup.sh << 'EOF'
+    #!/bin/bash
+    BACKUP_DIR="/opt/opencbs/backups"
+    DATE=$(date +%Y%m%d_%H%M%S)
+    mkdir -p $BACKUP_DIR
+    pg_dump -U opencbs_user opencbs_cloud | gzip > $BACKUP_DIR/opencbs_$DATE.sql.gz
+    # Keep only last 30 days
+    find $BACKUP_DIR -name "opencbs_*.sql.gz" -mtime +30 -delete
+    EOF
+
+    chmod +x /opt/opencbs/backup.sh
+    ```
+
+    Add to crontab for daily backups:
+
+    ```bash
+    # Run backup daily at 2 AM
+    0 2 * * * /opt/opencbs/backup.sh
+    ```
+  </Step>
+
+  <Step title="Application Backups">
+    ```bash
+    # Backup configuration
+    tar -czf opencbs-config-$(date +%Y%m%d).tar.gz /opt/opencbs/*.properties
+
+    # Backup uploaded files (if any)
+    tar -czf opencbs-files-$(date +%Y%m%d).tar.gz /opt/opencbs/uploads/
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Application fails to start">
+    Check logs for errors:
+
+    ```bash
+    # Systemd
+    sudo journalctl -u opencbs -n 100
+
+    # Docker
+    docker logs opencbs-api
+    ```
+
+    Common issues:
+    - Database connection failure: Verify PostgreSQL is running and credentials are correct
+    - Port already in use: Check if another service is using port 8080
+    - Insufficient memory: Increase JVM heap size
+  </Accordion>
+
+  <Accordion title="Frontend shows API connection errors">
+    Verify backend is running:
+
+    ```bash
+    curl http://localhost:8080/api/health
+    ```
+
+    Check Nginx proxy configuration:
+
+    ```bash
+    sudo nginx -t
+    sudo tail -f /var/log/nginx/error.log
+    ```
+  </Accordion>
+
+  <Accordion title="Database migration failures">
+    Check Flyway migration status:
+
+    ```sql
+    SELECT * FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 10;
+    ```
+
+    If migrations are stuck, check for:
+    - Lock issues: Restart the application
+    - Failed migrations: Review and fix SQL errors
+    - Version conflicts: Ensure all modules are at compatible versions
+  </Accordion>
+
+  <Accordion title="Out of memory errors">
+    Increase JVM memory:
+
+    ```bash
+    # Edit systemd service
+    sudo systemctl edit opencbs
+
+    # Add:
+    [Service]
+    Environment="JAVA_OPTS=-Xmx4096m -Xms1024m"
+
+    # Reload and restart
+    sudo systemctl daemon-reload
+    sudo systemctl restart opencbs
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Documentation" icon="book" href="/api/overview">
+    Explore the OpenCBS Cloud REST API
+  </Card>
+  <Card title="User Guide" icon="users" href="/guides/creating-profiles">
+    Learn how to use OpenCBS Cloud features
+  </Card>
+</CardGroup>

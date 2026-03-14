@@ -1,0 +1,464 @@
+---
+title: Collateral Management
+description: Track and manage loan collateral with custom fields and valuations
+---
+
+## Overview
+
+OpenCBS Cloud provides comprehensive collateral management for secured lending. The system tracks collateral items linked to loan applications, including valuations, custom attributes, and lifecycle management from pledge to release.
+
+<CardGroup cols={2}>
+  <Card title="Collateral Types" icon="list">
+    Configurable collateral categories with custom fields
+  </Card>
+  <Card title="Valuation Tracking" icon="dollar-sign">
+    Record and monitor collateral values over time
+  </Card>
+  <Card title="Loan Linkage" icon="link">
+    Associate collateral with loan applications
+  </Card>
+  <Card title="Lifecycle Management" icon="arrows-rotate">
+    Track from pledge through release
+  </Card>
+</CardGroup>
+
+## Collateral Structure
+
+### Core Entity
+
+Collateral items are tracked with the following structure:
+
+```java
+@Entity
+@Table(name = "collaterals")
+public class Collateral extends BaseEntity {
+    @Column(name = "name", nullable = false)
+    private String name;
+    
+    @Column(name = "amount", precision = 14, scale = 4)
+    private BigDecimal amount;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_application_id")
+    private LoanApplication loanApplication;
+    
+    @JoinColumn(name = "created_at")
+    private LocalDateTime createdAt;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id")
+    private User createdBy;
+    
+    @OneToMany(mappedBy = "collateral", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    private List<CollateralCustomFieldValue> customFieldValues = new ArrayList<>();
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "type_of_collateral_id", nullable = false)
+    private TypeOfCollateral typeOfCollateral;
+    
+    @JoinColumn(name = "closed_at")
+    private LocalDateTime closedAt;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "closed_by_id")
+    private User closedBy;
+}
+```
+
+<Accordion title="Collateral Fields Explained">
+  - **Name**: Description of the collateral item (e.g., "Toyota Camry 2020", "Commercial Property - Main Street")
+  - **Amount**: Appraised or market value of the collateral
+  - **Loan Application**: The loan application this collateral secures
+  - **Created At**: When collateral was pledged
+  - **Created By**: User who recorded the collateral
+  - **Custom Field Values**: Flexible attributes specific to collateral type
+  - **Type of Collateral**: Collateral category (vehicle, property, equipment, etc.)
+  - **Closed At**: When collateral was released
+  - **Closed By**: User who released the collateral
+</Accordion>
+
+## Collateral Types
+
+### Type Configuration
+
+Collateral types categorize items and define applicable custom fields:
+
+```java
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "type_of_collateral_id", nullable = false)
+private TypeOfCollateral typeOfCollateral;
+```
+
+**Common Collateral Types:**
+
+<Tabs>
+  <Tab title="Real Estate">
+    ### Real Estate Collateral
+    
+    **Typical Custom Fields:**
+    - Property Address
+    - Land Title Number
+    - Property Type (residential, commercial, agricultural)
+    - Land Area (square meters/acres)
+    - Building Area
+    - Year Built
+    - Legal Description
+    - Encumbrances
+    - Insurance Policy Number
+    - Last Appraisal Date
+    
+    **Documentation:**
+    - Title Deed
+    - Survey Plan
+    - Valuation Report
+    - Insurance Certificate
+    - Tax Clearance
+  </Tab>
+  
+  <Tab title="Vehicles">
+    ### Vehicle Collateral
+    
+    **Typical Custom Fields:**
+    - Vehicle Make
+    - Model
+    - Year of Manufacture
+    - Vehicle Identification Number (VIN)
+    - License Plate Number
+    - Color
+    - Mileage/Kilometers
+    - Engine Number
+    - Chassis Number
+    - Insurance Details
+    
+    **Documentation:**
+    - Vehicle Registration
+    - Log Book/Title
+    - Insurance Policy
+    - Valuation Certificate
+    - Transfer Documents
+  </Tab>
+  
+  <Tab title="Equipment">
+    ### Equipment & Machinery
+    
+    **Typical Custom Fields:**
+    - Equipment Type
+    - Manufacturer
+    - Model Number
+    - Serial Number
+    - Year of Purchase
+    - Condition
+    - Location
+    - Invoice Value
+    - Depreciation Rate
+    
+    **Documentation:**
+    - Purchase Invoice
+    - Warranty Documents
+    - Appraisal Report
+    - Insurance Coverage
+  </Tab>
+  
+  <Tab title="Financial Assets">
+    ### Financial Instruments
+    
+    **Typical Custom Fields:**
+    - Instrument Type (stocks, bonds, deposits)
+    - Issuer
+    - Certificate/Account Number
+    - Maturity Date
+    - Face Value
+    - Current Market Value
+    - Custodian
+    
+    **Documentation:**
+    - Share Certificates
+    - Deposit Certificates
+    - Account Statements
+    - Lien Authorization
+  </Tab>
+  
+  <Tab title="Inventory">
+    ### Inventory & Stock
+    
+    **Typical Custom Fields:**
+    - Inventory Type
+    - Quantity
+    - Unit of Measure
+    - Storage Location
+    - Condition
+    - Expiry Date (if applicable)
+    - Invoice Value
+    - Current Market Value
+    
+    **Documentation:**
+    - Stock Report
+    - Warehouse Receipt
+    - Valuation Report
+    - Insurance Policy
+  </Tab>
+</Tabs>
+
+## Custom Fields
+
+### Flexible Attributes
+
+Collateral custom fields capture type-specific information:
+
+```java
+@OneToMany(mappedBy = "collateral", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+private List<CollateralCustomFieldValue> customFieldValues = new ArrayList<>();
+```
+
+**Custom Field Features:**
+- Defined per collateral type
+- Support various data types (text, number, date, lookup)
+- Required/optional validation
+- Section grouping for organization
+
+<Note>
+  Custom fields are configured at the collateral type level. When creating collateral, only fields relevant to the selected type are presented.
+</Note>
+
+## Valuation Management
+
+### Amount Tracking
+
+```java
+@Column(name = "amount", precision = 14, scale = 4)
+private BigDecimal amount;
+```
+
+The amount field stores the current appraised value with high precision (4 decimal places).
+
+**Valuation Best Practices:**
+- Initial valuation at loan application
+- Periodic revaluations based on policy
+- Professional appraisals for high-value items
+- Market value vs. forced sale value consideration
+- Document valuation methodology
+
+### Coverage Ratios
+
+Collateral value is used to calculate loan-to-value (LTV) ratios:
+
+```
+LTV = Loan Amount / Collateral Value
+```
+
+**Example:**
+- Loan Amount: $80,000
+- Collateral Value: $100,000  
+- LTV Ratio: 80%
+
+Lower LTV ratios indicate better security coverage.
+
+## Loan Application Linkage
+
+### Multiple Collateral Items
+
+Loan applications can have multiple collateral items:
+
+```java
+// From LoanApplication entity
+@OneToMany(mappedBy = "loanApplication")
+private Set<Collateral> collaterals;
+```
+
+**Use Cases:**
+- Multiple assets securing one loan
+- Partial collateral coverage requiring multiple items
+- Cross-collateralization across loan portfolio
+
+<Accordion title="Collateral Assignment Example">
+  **Loan Application: $150,000**
+  
+  Collateral Items:
+  1. Residential Property - $120,000
+  2. Vehicle - $40,000
+  
+  Total Collateral: $160,000
+  LTV: 93.75%
+  
+  This provides adequate security coverage even if one asset depreciates.
+</Accordion>
+
+## Lifecycle Management
+
+### Creation and Pledge
+
+```java
+@JoinColumn(name = "created_at")
+private LocalDateTime createdAt;
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "created_by_id")
+private User createdBy;
+```
+
+When collateral is pledged:
+1. Collateral record created and linked to loan application
+2. Custom field values captured
+3. Supporting documentation attached
+4. Creation timestamp and user recorded
+
+### Release Process
+
+```java
+@JoinColumn(name = "closed_at")
+private LocalDateTime closedAt;
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "closed_by_id")
+private User closedBy;
+```
+
+Collateral is released when:
+- Loan is fully repaid
+- Collateral is substituted with alternative security
+- Loan is restructured with different terms
+
+**Release Workflow:**
+1. Verify loan closure or alternative arrangement
+2. Prepare release documentation
+3. Set `closedAt` timestamp
+4. Record `closedBy` user
+5. Return original documents to client
+
+<Note>
+  Collateral records are never deleted, only marked as closed. This maintains complete audit trail and historical reference.
+</Note>
+
+## Integration with Loan Workflow
+
+### Application Stage
+
+During loan application:
+1. Applicant declares collateral items
+2. Valuation arranged (internal or external)
+3. Collateral details and custom fields completed
+4. Documentation uploaded
+5. LTV ratio calculated
+6. Credit committee reviews adequacy
+
+### Approval Conditions
+
+Collateral may impact approval:
+- Minimum LTV ratio requirements
+- Acceptable collateral types per product
+- Valuation requirements (age, source)
+- Insurance requirements
+- Legal documentation completeness
+
+### Disbursement
+
+Before loan disbursement:
+- Legal documentation finalized (mortgage, lien, pledge)
+- Registration completed (land registry, vehicle registry)
+- Insurance coverage confirmed
+- Collateral status verified
+
+## Monitoring and Maintenance
+
+### Periodic Review
+
+**Collateral Monitoring Activities:**
+- Revaluation schedules (annual, bi-annual)
+- Physical inspection (particularly for equipment, inventory)
+- Insurance policy renewal tracking
+- Market value updates
+- Legal status verification
+
+### Depreciation Tracking
+
+For depreciating assets:
+- Track original value and current value
+- Apply depreciation rates
+- Monitor LTV ratio changes
+- Trigger re-collateralization if needed
+
+### Risk Indicators
+
+**Warning Signs:**
+- LTV ratio exceeding policy limits
+- Expired insurance coverage
+- Physical damage or deterioration
+- Legal disputes over ownership
+- Market value decline
+
+## Reporting
+
+### Collateral Reports
+
+**Common Reports:**
+- Collateral register (all active pledges)
+- Collateral by type
+- Collateral by value range
+- LTV ratio analysis
+- Under-collateralized loans
+- Expiring insurance policies
+- Pending revaluations
+
+### Compliance
+
+Collateral tracking supports:
+- Regulatory reporting requirements
+- Provisioning calculations
+- Risk-weighted asset calculations
+- Audit trail for examiners
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Valuation" icon="magnifying-glass-chart">
+    - Use qualified appraisers
+    - Update valuations regularly
+    - Apply conservative haircuts
+    - Document valuation methodology
+  </Card>
+  
+  <Card title="Documentation" icon="file-lines">
+    - Collect complete legal documents
+    - Verify ownership before pledge
+    - Ensure proper registration
+    - Maintain document repository
+  </Card>
+  
+  <Card title="Insurance" icon="shield-halved">
+    - Require adequate coverage
+    - Institution as beneficiary
+    - Track renewal dates
+    - Verify premium payments
+  </Card>
+  
+  <Card title="Monitoring" icon="binoculars">
+    - Regular physical inspections
+    - Track market value changes
+    - Monitor LTV ratios
+    - Proactive re-collateralization
+  </Card>
+</CardGroup>
+
+## Security Considerations
+
+### Legal Protection
+
+- Proper legal documentation (mortgage deed, chattel mortgage, pledge agreement)
+- Registration with relevant authorities
+- Priority of security interest
+- Right of foreclosure/repossession
+- Insurance claims rights
+
+### Enforcement
+
+In case of default:
+1. Legal notices to borrower
+2. Foreclosure/repossession procedures
+3. Valuation for sale
+4. Sale through appropriate channels
+5. Application of proceeds to loan balance
+6. Release of excess to borrower
+
+<Note>
+  Collateral enforcement procedures must comply with local laws and regulations. Consult legal counsel for jurisdiction-specific requirements.
+</Note>

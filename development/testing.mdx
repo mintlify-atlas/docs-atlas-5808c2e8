@@ -1,0 +1,463 @@
+---
+title: Testing
+description: Testing strategies and running tests for OpenCBS Cloud
+---
+
+This guide covers testing practices and how to run tests for OpenCBS Cloud.
+
+## Testing Architecture
+
+OpenCBS Cloud uses different testing strategies for server and client:
+
+- **Server**: JUnit, Mockito, Spring Test, and Spring REST Docs
+- **Client**: Jasmine, Karma, and Protractor
+
+## Server Testing
+
+### Test Structure
+
+Tests are located in each module's test directory:
+
+```
+server/
+├── opencbs-core/src/test/java/
+│   ├── com/opencbs/core/
+│   │   ├── apidoc/           # API documentation tests
+│   │   └── helpers/          # Helper unit tests
+│   ├── unit/worker/          # Worker unit tests
+│   └── fixtures/             # Test fixtures and utilities
+├── opencbs-loans/src/test/java/
+├── opencbs-savings/src/test/java/
+└── ...
+```
+
+### Test Types
+
+#### Unit Tests
+
+Unit tests verify individual components in isolation:
+
+```java DateHelperTest.java
+package com.opencbs.core.helpers;
+
+import junit.framework.TestCase;
+import org.junit.Assert;
+import java.time.LocalDate;
+
+public class DateHelperTest extends TestCase {
+    
+    public void testDaysBetweenAs_30_360() {
+        LocalDate start = LocalDate.of(2019, 1, 28);
+        LocalDate end = LocalDate.of(2019, 4, 1);
+        Long daysBetween = DateHelper.daysBetweenAs_30_360(start, end);
+        Assert.assertEquals(17L, daysBetween.longValue());
+    }
+}
+```
+
+#### API Documentation Tests
+
+Spring REST Docs tests generate API documentation:
+
+```java
+public class ProfileDocumentationTest extends BaseDocumentationTest {
+    // Tests that validate API endpoints and generate docs
+}
+```
+
+#### Integration Tests
+
+Integration tests verify component interactions with the database and Spring context.
+
+### Running Server Tests
+
+<Steps>
+  <Step title="Run All Tests">
+    Execute all tests across all modules:
+    
+    ```bash
+    cd server
+    mvn test
+    ```
+  </Step>
+
+  <Step title="Run Tests for Specific Module">
+    ```bash
+    mvn -f ./server/opencbs-core/pom.xml test
+    ```
+  </Step>
+
+  <Step title="Run Specific Test Class">
+    ```bash
+    mvn test -Dtest=DateHelperTest
+    ```
+  </Step>
+
+  <Step title="Run Specific Test Method">
+    ```bash
+    mvn test -Dtest=DateHelperTest#testDaysBetweenAs_30_360
+    ```
+  </Step>
+</Steps>
+
+### Test Configuration
+
+Test dependencies are defined in each module's `pom.xml`:
+
+```xml pom.xml
+<dependencies>
+    <!-- Testing frameworks -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+        <groupId>org.springframework.security</groupId>
+        <artifactId>spring-security-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+        <groupId>org.springframework.restdocs</groupId>
+        <artifactId>spring-restdocs-mockmvc</artifactId>
+        <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+
+## Client Testing
+
+The Angular client uses Jasmine for unit tests and Protractor for end-to-end tests.
+
+### Test Structure
+
+```
+client/
+├── src/
+│   └── app/
+│       └── **/*.spec.ts    # Unit test files
+└── e2e/
+    └── **/*.e2e-spec.ts    # E2E test files
+```
+
+### Running Client Tests
+
+<Steps>
+  <Step title="Unit Tests">
+    Run unit tests with Karma:
+    
+    ```bash
+    cd client
+    npm test
+    # Or
+    ng test
+    ```
+    
+    This will:
+    - Launch Chrome browser
+    - Run all `*.spec.ts` files
+    - Watch for file changes
+    - Display results in terminal and browser
+  </Step>
+
+  <Step title="End-to-End Tests">
+    Run E2E tests with Protractor:
+    
+    ```bash
+    npm run e2e
+    # Or
+    ng e2e
+    ```
+    
+    <Note>
+      Ensure the application is running before executing E2E tests: `ng serve`
+    </Note>
+  </Step>
+
+  <Step title="E2E Watch Mode">
+    Run E2E tests in watch mode:
+    
+    ```bash
+    npm run e2e:watch
+    ```
+    
+    Tests will re-run when source or test files change.
+  </Step>
+
+  <Step title="Linting">
+    Check code style and quality:
+    
+    ```bash
+    npm run lint
+    # Or
+    ng lint
+    ```
+  </Step>
+</Steps>
+
+### Test Configuration
+
+Testing frameworks are configured in `package.json`:
+
+```json package.json
+{
+  "devDependencies": {
+    "jasmine-core": "~2.6.2",
+    "jasmine-spec-reporter": "~4.1.0",
+    "karma": "~4.3.0",
+    "karma-chrome-launcher": "~2.1.1",
+    "karma-jasmine": "^1.1.2",
+    "karma-jasmine-html-reporter": "^0.2.2",
+    "karma-coverage-istanbul-reporter": "^1.4.3",
+    "protractor": "~5.1.2"
+  }
+}
+```
+
+## Testing Best Practices
+
+### Server Testing Guidelines
+
+<Steps>
+  <Step title="Use Fixtures">
+    Create reusable test data in fixture classes:
+    
+    ```java
+    public class AccountingEntryFixtures {
+        public static AccountingEntry createTestEntry() {
+            // Create and return test data
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Mock External Dependencies">
+    Use Mockito to mock services and repositories:
+    
+    ```java
+    @Mock
+    private UserRepository userRepository;
+    
+    @InjectMocks
+    private UserService userService;
+    
+    @Test
+    public void testUserCreation() {
+        when(userRepository.save(any())).thenReturn(mockUser);
+        // Test logic
+    }
+    ```
+  </Step>
+
+  <Step title="Test Edge Cases">
+    Include tests for:
+    - Null values
+    - Empty collections
+    - Boundary conditions
+    - Exception scenarios
+  </Step>
+</Steps>
+
+### Client Testing Guidelines
+
+<Steps>
+  <Step title="Test Component Isolation">
+    Test components independently of their dependencies:
+    
+    ```typescript
+    describe('MyComponent', () => {
+      let component: MyComponent;
+      let fixture: ComponentFixture<MyComponent>;
+      
+      beforeEach(() => {
+        TestBed.configureTestingModule({
+          declarations: [MyComponent],
+          providers: [
+            { provide: MyService, useClass: MockMyService }
+          ]
+        });
+        
+        fixture = TestBed.createComponent(MyComponent);
+        component = fixture.componentInstance;
+      });
+      
+      it('should create', () => {
+        expect(component).toBeTruthy();
+      });
+    });
+    ```
+  </Step>
+
+  <Step title="Test User Interactions">
+    Simulate user actions:
+    
+    ```typescript
+    it('should call submit on button click', () => {
+      spyOn(component, 'onSubmit');
+      const button = fixture.debugElement.query(By.css('button'));
+      button.nativeElement.click();
+      expect(component.onSubmit).toHaveBeenCalled();
+    });
+    ```
+  </Step>
+</Steps>
+
+## Code Coverage
+
+### Server Coverage
+
+<CodeGroup>
+```bash Generate Coverage
+mvn clean test jacoco:report
+```
+
+```bash View Report
+# Coverage reports are generated at:
+# target/site/jacoco/index.html
+open server/opencbs-core/target/site/jacoco/index.html
+```
+</CodeGroup>
+
+### Client Coverage
+
+```bash
+# Run tests with coverage
+ng test --code-coverage
+
+# View coverage report
+open client/coverage/index.html
+```
+
+<Note>
+  Aim for at least 80% code coverage for critical business logic.
+</Note>
+
+## Continuous Testing
+
+### Watch Mode for Development
+
+<CodeGroup>
+```bash Server Watch
+# Maven continuous testing plugin
+mvn fizzed-watcher:run
+```
+
+```bash Client Watch
+# Angular tests in watch mode (default)
+ng test
+```
+</CodeGroup>
+
+### Pre-commit Testing
+
+Set up Git hooks to run tests before commits:
+
+```bash .git/hooks/pre-commit
+#!/bin/bash
+
+echo "Running server tests..."
+cd server && mvn test -q
+SERVER_RESULT=$?
+
+echo "Running client tests..."
+cd ../client && ng test --watch=false
+CLIENT_RESULT=$?
+
+if [ $SERVER_RESULT -ne 0 ] || [ $CLIENT_RESULT -ne 0 ]; then
+  echo "Tests failed. Commit aborted."
+  exit 1
+fi
+
+exit 0
+```
+
+## Test Database
+
+For integration tests requiring a database:
+
+### H2 In-Memory Database
+
+```xml test dependencies
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+```properties test application.properties
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driver-class-name=org.h2.Driver
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+```
+
+### Test Containers
+
+For tests requiring PostgreSQL:
+
+```java
+@Testcontainers
+public class IntegrationTest {
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:12")
+        .withDatabaseName("test")
+        .withUsername("test")
+        .withPassword("test");
+}
+```
+
+## Troubleshooting
+
+### Maven Test Failures
+
+**Problem**: Tests fail with database connection errors
+
+```bash
+# Use H2 in-memory database for tests
+mvn test -Dspring.profiles.active=test
+```
+
+**Problem**: Tests timeout
+
+```bash
+# Increase test timeout
+mvn test -Dsurefire.timeout=600
+```
+
+### Karma Test Failures
+
+**Problem**: ChromeHeadless not found
+
+```bash
+# Install Chrome/Chromium
+sudo apt-get install chromium-browser
+
+# Or use different browser
+ng test --browsers=Firefox
+```
+
+**Problem**: Tests fail in CI
+
+```bash
+# Run in headless mode
+ng test --watch=false --browsers=ChromeHeadless
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Contributing" icon="code-pull-request" href="/development/contributing">
+    Learn how to contribute to the project
+  </Card>
+  <Card title="Building" icon="hammer" href="/development/building">
+    Build the project for deployment
+  </Card>
+</CardGroup>

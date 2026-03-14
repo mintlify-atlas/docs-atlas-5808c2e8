@@ -1,0 +1,363 @@
+---
+title: Branch Management
+description: Manage branches and multi-branch operations in OpenCBS Cloud
+---
+
+## Overview
+
+Branches in OpenCBS represent physical or logical locations where your organization operates. All users must be assigned to a branch, and many operations can be filtered by branch for multi-branch institutions.
+
+## Branch Structure
+
+Each branch in OpenCBS has the following properties:
+
+<ParamField path="id" type="long">
+  Unique identifier for the branch
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Name of the branch (e.g., "Main Office", "Downtown Branch")
+</ParamField>
+
+<ParamField path="customFieldValues" type="List<BranchCustomFieldValue>">
+  Additional custom fields configured for branches
+</ParamField>
+
+<ParamField path="customFieldSections" type="List<ProfileCustomFieldSectionDto>">
+  Grouped custom fields organized by sections
+</ParamField>
+
+## Viewing Branches
+
+### Get All Branches
+
+Retrieve a paginated list of all branches:
+
+```bash
+GET /api/branches?page=0&size=20&sort=name,asc
+```
+
+Query parameters:
+- `page`: Page number (zero-indexed)
+- `size`: Number of records per page
+- `sort`: Sort criteria (e.g., "name,asc")
+
+Response:
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "name": "Main Office",
+      "customFieldSections": []
+    },
+    {
+      "id": 2,
+      "name": "Downtown Branch",
+      "customFieldSections": []
+    }
+  ],
+  "totalElements": 2,
+  "totalPages": 1,
+  "size": 20,
+  "number": 0
+}
+```
+
+### Get Branch by ID
+
+Retrieve details of a specific branch:
+
+```bash
+GET /api/branches/{id}
+```
+
+Example:
+```bash
+GET /api/branches/1
+```
+
+### Branch Lookup
+
+Search for branches by name:
+
+```bash
+GET /api/branches/lookup?search=downtown&page=0&size=20
+```
+
+The `search` parameter performs a partial match on branch names.
+
+## Creating a Branch
+
+<Steps>
+  <Step title="Prepare Branch Data">
+    Determine the branch name and any custom field values.
+  </Step>
+  
+  <Step title="Submit Creation Request">
+    Send a `POST` request to `/api/branches` with the branch details.
+    
+    ```json
+    {
+      "name": "East Side Branch",
+      "customFieldValues": []
+    }
+    ```
+  </Step>
+  
+  <Step title="Branch Created">
+    The system validates the data and creates the branch immediately.
+  </Step>
+</Steps>
+
+Example request:
+```bash
+POST /api/branches
+Content-Type: application/json
+
+{
+  "name": "East Side Branch"
+}
+```
+
+<Note>
+  Branch creation does not follow the maker-checker workflow and is created immediately upon successful validation.
+</Note>
+
+## Updating a Branch
+
+<Steps>
+  <Step title="Retrieve Current Branch">
+    Get the existing branch details via `GET /api/branches/{id}`
+  </Step>
+  
+  <Step title="Modify Branch Data">
+    Update the branch name or custom field values.
+  </Step>
+  
+  <Step title="Submit Update Request">
+    Send a `PUT` request to `/api/branches/{id}` with updated data.
+    
+    ```json
+    {
+      "name": "East Side Branch - Relocated",
+      "customFieldValues": []
+    }
+    ```
+  </Step>
+  
+  <Step title="Changes Applied">
+    The branch is updated immediately after validation.
+  </Step>
+</Steps>
+
+Example request:
+```bash
+PUT /api/branches/3
+Content-Type: application/json
+
+{
+  "name": "East Side Branch - Relocated"
+}
+```
+
+## Custom Fields
+
+Branches support custom fields that allow you to capture additional information specific to your organization's needs.
+
+### Custom Field Sections
+
+Custom fields can be organized into sections for better organization:
+
+```json
+{
+  "id": 1,
+  "name": "Main Office",
+  "customFieldSections": [
+    {
+      "id": 1,
+      "caption": "Contact Information",
+      "order": 1,
+      "customFields": [
+        {
+          "id": 1,
+          "name": "phone",
+          "caption": "Phone Number",
+          "fieldType": "TEXT",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Managing Custom Fields
+
+Custom fields for branches are managed through dedicated endpoints:
+
+- **Custom Field Definitions**: `/api/branches/custom-fields`
+- **Custom Field Sections**: `/api/branches/custom-field-sections`
+
+See the Custom Fields documentation for more details.
+
+## Multi-Branch Operations
+
+### Branch-Based Filtering
+
+Many resources in OpenCBS can be filtered by branch:
+
+#### Users by Branch
+```bash
+GET /api/users/lookup?branchId=1
+```
+
+#### Loans by Branch
+```bash
+GET /api/loans?branchId=1
+```
+
+#### Savings Accounts by Branch
+```bash
+GET /api/savings?branchId=1
+```
+
+### Branch Assignment
+
+Users must be assigned to a branch:
+
+```json
+{
+  "username": "jdoe",
+  "firstName": "John",
+  "lastName": "Doe",
+  "branchId": 1,
+  "roleId": 2
+}
+```
+
+The branch assignment:
+- Determines which branch the user belongs to
+- Can be used for reporting and filtering
+- May affect user permissions in branch-specific workflows
+
+## Branch Validation
+
+When creating or updating branches, the system performs validation:
+
+<Warning>
+  Branch names must be unique. You cannot create two branches with the same name.
+</Warning>
+
+Validation rules:
+- Name is required and cannot be empty
+- Name must be unique across all branches
+- Custom field values must conform to field definitions
+
+## Use Cases
+
+### Single Branch Institution
+
+For organizations with a single location:
+
+<Steps>
+  <Step title="Create One Branch">
+    Create a single branch representing your organization (e.g., "Head Office").
+  </Step>
+  
+  <Step title="Assign All Users">
+    Assign all users to this branch.
+  </Step>
+  
+  <Step title="Operations as Normal">
+    Conduct all operations without needing to filter by branch.
+  </Step>
+</Steps>
+
+### Multi-Branch Institution
+
+For organizations with multiple locations:
+
+<Steps>
+  <Step title="Create Branches">
+    Create a branch for each physical or logical location.
+  </Step>
+  
+  <Step title="Assign Users to Branches">
+    Assign each user to their primary branch location.
+  </Step>
+  
+  <Step title="Use Branch Filters">
+    Utilize branch filters in reports and user lookups to segment data.
+  </Step>
+  
+  <Step title="Branch-Level Reporting">
+    Generate reports filtered by branch to analyze performance per location.
+  </Step>
+</Steps>
+
+## Best Practices
+
+<Steps>
+  <Step title="Consistent Naming">
+    Use a consistent naming convention for branches (e.g., "City - Area" or "Branch Code - Name").
+  </Step>
+  
+  <Step title="Plan Custom Fields">
+    Identify branch-specific information you need to track before creating branches.
+  </Step>
+  
+  <Step title="Avoid Frequent Renames">
+    Branch names may appear in historical reports, so avoid renaming unless necessary.
+  </Step>
+  
+  <Step title="Document Branch Codes">
+    If using custom fields for branch codes, maintain documentation of the coding system.
+  </Step>
+  
+  <Step title="Review User Assignments">
+    Periodically review user-to-branch assignments to ensure they remain current.
+  </Step>
+</Steps>
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/branches` | GET | List all branches (paginated) |
+| `/api/branches/{id}` | GET | Get branch by ID |
+| `/api/branches/lookup` | GET | Search branches by name |
+| `/api/branches` | POST | Create new branch |
+| `/api/branches/{id}` | PUT | Update branch |
+| `/api/branches/custom-fields` | * | Manage branch custom fields |
+| `/api/branches/custom-field-sections` | * | Manage custom field sections |
+
+<Note>
+  All branch operations return results in paginated format. Use `page`, `size`, and `sort` parameters to control pagination.
+</Note>
+
+## Related Documentation
+
+- [User Management](/admin/user-management) - Learn how users are assigned to branches
+- [Global Settings](/admin/global-settings) - Configure system-wide settings
+- [Currencies](/admin/currencies) - Manage currencies for multi-currency operations
+
+## Troubleshooting
+
+### Cannot Create Branch
+
+**Error**: "Branch with this name already exists"
+
+**Solution**: Branch names must be unique. Choose a different name or modify the existing branch.
+
+### User Assignment Fails
+
+**Error**: "There is no branch with this ID"
+
+**Solution**: Verify the branch ID exists by calling `GET /api/branches/{id}` before assigning users.
+
+### Branch Not Appearing in Filters
+
+**Issue**: Branch doesn't show in user lookup filters
+
+**Solution**: Ensure the branch has been successfully created and has a valid ID. Check by retrieving all branches.

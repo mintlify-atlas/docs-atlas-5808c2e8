@@ -1,0 +1,548 @@
+---
+title: Savings Module
+description: Savings account management with interest accrual, posting, and comprehensive fee structures
+---
+
+The `opencbs-savings` module provides complete savings account lifecycle management including account opening, deposits, withdrawals, interest calculation, and fee processing.
+
+## Overview
+
+The savings module extends the core module to provide specialized functionality for managing savings accounts with flexible interest rates and fee structures.
+
+<CardGroup cols={2}>
+  <Card title="Savings Products" icon="piggy-bank">
+    Configurable product templates with interest and fees
+  </Card>
+  <Card title="Account Operations" icon="right-left">
+    Deposits, withdrawals, and transfers
+  </Card>
+  <Card title="Interest Calculation" icon="percent">
+    Automated daily accrual and periodic posting
+  </Card>
+  <Card title="Fee Management" icon="coins">
+    Entry, management, withdrawal, and close fees
+  </Card>
+</CardGroup>
+
+## Savings Domain Model
+
+The savings domain model represents savings accounts and their associated transactions.
+
+### Saving Entity
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/domain/Saving.java:30`
+
+```java
+@Entity
+@Table(name = "savings")
+public class Saving extends Contract implements NamedEntity {
+    private String code;
+    private Profile profile;
+    private SavingProduct product;
+    private BigDecimal interestRate;
+    private Frequency interestAccrualFrequency;
+    private Frequency interestPostingFrequency;
+    private boolean capitalized;
+    private SavingStatus status;
+    private List<SavingAccount> accounts;
+}
+```
+
+### Key Domain Classes
+
+<Tabs>
+  <Tab title="Core Entities">
+    **Saving** - Main savings account entity
+    
+    **SavingProduct** - Product template for savings
+    
+    **SavingAccount** - GL account mappings
+    
+    **SavingInterestAccrual** - Daily interest tracking
+    
+    **SavingPosting** - Interest posting records
+  </Tab>
+  <Tab title="Supporting Entities">
+    **SavingManagementFee** - Management fee tracking
+    
+    **SavingAccountingEntry** - Link to accounting entries
+    
+    **BaseSavingAccount** - Base account functionality
+  </Tab>
+  <Tab title="Enumerations">
+    **SavingStatus** - Account lifecycle states
+    ```
+    PENDING, APPROVED, ACTIVE, 
+    LOCKED, CLOSED
+    ```
+    
+    **SavingAccountRuleType** - Account type mappings
+    ```
+    SAVING, INTEREST, INTEREST_EXPENSE,
+    DEPOSIT_FEE, WITHDRAWAL_FEE, 
+    MANAGEMENT_FEE, ENTRY_FEE, CLOSE_FEE
+    ```
+  </Tab>
+</Tabs>
+
+## Savings Products
+
+Savings products define templates with configurable parameters for different account types.
+
+### Product Configuration
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/domain/SavingProduct.java`
+
+<Accordion title="Product Parameters">
+  **Interest Settings**
+  - Interest rate (fixed or range)
+  - Accrual frequency (daily, monthly, quarterly)
+  - Posting frequency (monthly, quarterly, annually)
+  - Capitalization option
+  - Minimum balance for interest
+  
+  **Deposit Parameters**
+  - Minimum deposit amount
+  - Maximum deposit amount
+  - Deposit fee rate (percentage)
+  - Deposit fee flat (fixed amount)
+  
+  **Withdrawal Parameters**
+  - Minimum withdrawal amount
+  - Maximum withdrawal amount
+  - Withdrawal fee rate
+  - Withdrawal fee flat
+  
+  **Management Fees**
+  - Management fee rate
+  - Management fee flat
+  - Fee frequency (monthly, quarterly, annually)
+  
+  **Entry & Close Fees**
+  - Entry fee rate
+  - Entry fee flat
+  - Close fee rate
+  - Close fee flat
+  
+  **Account Rules**
+  - GL account mappings for all transaction types
+</Accordion>
+
+### Product Accounts
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/domain/SavingProductAccount.java`
+
+Defines GL account mappings for:
+- Savings balance (liability)
+- Interest payable
+- Interest expense
+- Fee income accounts
+
+**Mapper:** `SavingProductAccountMapper`
+
+## Savings Account Operations
+
+The savings module provides comprehensive services for account operations.
+
+### Core Services
+
+<Tabs>
+  <Tab title="Account Management">
+    **SavingService** - Core savings operations
+    - Create savings account
+    - Update account parameters
+    - Status transitions
+    - Balance inquiries
+    
+    **SavingAccountService** - GL account management
+    
+    **Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/services/SavingAccountService.java`
+    
+    - Get account by rule type
+    - Account balance calculations
+  </Tab>
+  <Tab title="Transactions">
+    **SavingWorker** - Transaction processing
+    - Deposit funds
+    - Withdraw funds
+    - Apply fees
+    - Transfer between accounts
+    
+    **TillWorker** - Cash transactions
+    
+    **Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/worker/TillWorker.java`
+    
+    - Till-based deposits
+    - Till-based withdrawals
+  </Tab>
+  <Tab title="Lifecycle">
+    **SavingAccountServiceImpl** - Account lifecycle
+    
+    **Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/services/impl/SavingAccountServiceImpl.java`
+    
+    - Open account
+    - Lock/unlock account
+    - Close account
+    
+    **SavingCloseService** - Account closure
+    - Calculate final interest
+    - Apply close fees
+    - Generate accounting entries
+  </Tab>
+</Tabs>
+
+### Transaction Validation
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/validators/`
+
+<CardGroup cols={2}>
+  <Card title="SavingValidator">
+    Validates savings operations
+    - Sufficient balance checks
+    - Amount limit validation
+    - Status verification
+  </Card>
+  <Card title="SavingProductValidator">
+    Validates product configuration
+    - Range consistency
+    - Required account mappings
+    - Fee configuration validity
+  </Card>
+  <Card title="TillSavingValidator">
+    Validates till operations
+    - Till balance verification
+    - Transaction limits
+  </Card>
+</CardGroup>
+
+## Interest Calculation
+
+The savings module implements sophisticated interest calculation with daily accrual and periodic posting.
+
+### Interest Accrual Process
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/services/impl/SavingInterestAccrualDayClosureProcessor.java:33`
+
+The interest accrual processor runs during day closure to calculate daily interest.
+
+```java
+@Service
+public class SavingInterestAccrualDayClosureProcessor 
+    implements SavingDayClosureProcessor {
+    
+    @Override
+    public void processContract(Long savingId, 
+                               LocalDate closureDate, 
+                               User user) {
+        SavingInterestAccrual saving = savingRepository.findOne(savingId);
+        if (saving.getInterestRate().equals(BigDecimal.ZERO)) {
+            return;
+        }
+        
+        AccountingEntry entry = 
+            createDailyAccrualEntry(saving, closureDate, user);
+        if (entry.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+            accountingEntryService.save(entry);
+        }
+    }
+}
+```
+
+### Interest Calculation Formula
+
+**Location:** SavingInterestAccrualDayClosureProcessor.java:101
+
+<Accordion title="Daily Interest Calculation">
+  The daily interest is calculated as:
+  
+  ```
+  Daily Interest = (Balance × Annual Rate) / Days in Year
+  ```
+  
+  **Formula Details:**
+  - Balance: End-of-day balance
+  - Annual Rate: Interest rate percentage / 100
+  - Days in Year: Actual days in the year (365 or 366)
+  - Rounding: HALF_EVEN to 2 decimal places
+  
+  **Minimum Balance Check:**
+  Interest is only calculated if the balance meets or exceeds the product's minimum balance requirement.
+  
+  **Accounting Entry:**
+  - Debit: Interest Expense account
+  - Credit: Interest Payable account
+</Accordion>
+
+### Interest Posting
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/services/impl/SavingPostingDayClosureProcessor.java`
+
+Posts accumulated interest to the savings account based on posting frequency.
+
+<CardGroup cols={2}>
+  <Card title="Accrual">
+    Daily calculation and tracking of earned interest
+  </Card>
+  <Card title="Posting">
+    Periodic transfer of accrued interest to account balance
+  </Card>
+  <Card title="Capitalization">
+    Optional: Add interest to principal for compounding
+  </Card>
+</CardGroup>
+
+## Day Closure Processing
+
+Savings accounts participate in the day-end closure process for interest and fees.
+
+### Day Closure Processors
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/services/impl/`
+
+<Tabs>
+  <Tab title="Interest Accrual">
+    **SavingInterestAccrualDayClosureProcessor**
+    
+    **Process Type:** `SAVING_INTEREST_ACCRUAL`
+    
+    **Operations:**
+    1. Get end-of-day balance
+    2. Check minimum balance requirement
+    3. Calculate daily interest
+    4. Create accounting entry
+    5. Link entry to savings account
+  </Tab>
+  <Tab title="Interest Posting">
+    **SavingPostingDayClosureProcessor**
+    
+    **Process Type:** `SAVING_INTEREST_POSTING`
+    
+    **Operations:**
+    1. Check posting frequency
+    2. Sum accrued interest since last posting
+    3. Transfer interest to account balance
+    4. Create accounting entries
+    5. Update last posting date
+  </Tab>
+  <Tab title="Management Fees">
+    **SavingManagementFeeDayClosureProcessor**
+    
+    **Process Type:** `SAVING_MANAGEMENT_FEE`
+    
+    **Operations:**
+    1. Check fee frequency
+    2. Calculate fee (rate + flat)
+    3. Deduct from account balance
+    4. Create accounting entry
+    5. Track fee application
+  </Tab>
+</Tabs>
+
+### Processor Interface
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/services/SavingDayClosureProcessor.java`
+
+```java
+public interface SavingDayClosureProcessor {
+    void processContract(Long savingId, 
+                        LocalDate closureDate, 
+                        User user);
+    ProcessType getProcessType();
+    String getIdentityString();
+}
+```
+
+## Fee Management
+
+Savings accounts support multiple fee types applied at different lifecycle points.
+
+### Fee Types and Application
+
+<Accordion title="Fee Structure">
+  **Entry Fee** - Applied when opening account
+  - Rate-based (% of initial deposit)
+  - Flat amount
+  - Debited from first deposit
+  
+  **Deposit Fee** - Applied on each deposit
+  - Rate-based (% of deposit amount)
+  - Flat amount per transaction
+  
+  **Withdrawal Fee** - Applied on each withdrawal
+  - Rate-based (% of withdrawal amount)
+  - Flat amount per transaction
+  
+  **Management Fee** - Periodic fee for account maintenance
+  - Rate-based (% of average balance)
+  - Flat monthly/quarterly/annual amount
+  - Applied during day closure
+  
+  **Close Fee** - Applied when closing account
+  - Rate-based (% of closing balance)
+  - Flat amount
+</Accordion>
+
+### Fee Calculation
+
+Fees are calculated as:
+```
+Total Fee = (Amount × FeeRate / 100) + FeeFlat
+```
+
+## Account Code Generation
+
+Automatic generation of unique account codes.
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/services/SavingCodeGenerator.java`
+
+**Customization:** Custom generators can be implemented using the `@CustomSavingCodeGenerator` annotation.
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/annotations/CustomSavingCodeGenerator.java`
+
+## Account Generation
+
+Automatic GL account creation for savings accounts.
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/services/SavingAccountGenerator.java`
+
+**Service:** `SavingAccountGeneratorService` - Creates required GL accounts based on product configuration
+
+**Customization:** Use `@CustomSavingAccountGenerator` for custom account creation logic
+
+## Repositories
+
+Data access layer for savings entities.
+
+### Key Repositories
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/repositories/`
+
+<CardGroup cols={2}>
+  <Card title="SavingRepository">
+    Main savings account data access
+    - Custom queries for reporting
+    - Balance calculations
+  </Card>
+  <Card title="SavingProductRepository">
+    Product template management
+    - Product search and filtering
+  </Card>
+  <Card title="SavingAccountRepository">
+    GL account associations
+  </Card>
+  <Card title="SavingInterestAccrualRepository">
+    Interest accrual records
+  </Card>
+  <Card title="SavingPostingRepository">
+    Interest posting history
+  </Card>
+  <Card title="SavingManagementFeeRepository">
+    Management fee tracking
+  </Card>
+</CardGroup>
+
+### Custom Repository Implementations
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/repositories/implementations/`
+
+- `SavingRepositoryImpl` - Complex savings queries
+- `SavingProductRepositoryImpl` - Product search implementations
+
+## Data Transfer Objects
+
+DTOs for API communication and data transformation.
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/dto/`
+
+<Tabs>
+  <Tab title="Basic DTOs">
+    **SavingDto** - Basic savings information
+    
+    **SavingProductDto** - Product template data
+    
+    **SavingAccountDto** - Account details
+  </Tab>
+  <Tab title="Detail DTOs">
+    **SavingDetailsDto** - Complete savings with relationships
+    
+    **SavingProductDetailsDto** - Product with all parameters
+    
+    **SavingAccountDetailsDto** - Account with balances
+  </Tab>
+  <Tab title="Operation DTOs">
+    **OperationSavingDto** - Transaction operations
+    
+    **SavingWithAccountDto** - Savings with account info
+    
+    **SimplifiedSavingAccount** - Lightweight account data
+  </Tab>
+</Tabs>
+
+## Mappers
+
+Entity to DTO mapping.
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/mappers/`
+
+- `SavingMapper` - Maps Saving entity to DTOs
+- `SavingProductMapper` - Maps product entities
+- `SavingAccountMapper` - Maps account entities
+- `SavingProductAccountMapper` - Maps product accounts
+
+## Configuration
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/configs/`
+
+**SavingFlywayConfig** - Database migration configuration for savings schema
+
+## Annotations
+
+Custom annotations for extending savings functionality.
+
+**Location:** `server/opencbs-savings/src/main/java/com/opencbs/savings/annotations/`
+
+<CardGroup cols={3}>
+  <Card title="@CustomSavingCodeGenerator">
+    Custom account code generation logic
+  </Card>
+  <Card title="@CustomSavingAccountGenerator">
+    Custom GL account creation
+  </Card>
+  <Card title="@CustomSavingDayClosureProcessor">
+    Custom day closure processing
+  </Card>
+</CardGroup>
+
+## Module Structure
+
+```
+opencbs-savings/
+├── domain/                    # Savings entities
+│   └── enums/                # Enumerations
+├── services/                  # Business services
+│   └── impl/                 # Service implementations
+├── repositories/              # Data access
+│   ├── customs/              # Custom query interfaces
+│   └── implementations/      # Custom query implementations
+├── validators/                # Validation logic
+├── workers/                   # Transaction workers
+│   └── impl/                 # Worker implementations
+├── controllers/               # REST API
+├── dto/                      # Data transfer objects
+├── mappers/                   # Entity-DTO mappers
+├── handlers/                  # Request handlers
+├── configs/                   # Configuration
+└── annotations/               # Custom annotations
+```
+
+## Key Dependencies
+
+- **opencbs-core** - Core entities and accounting services
+- Spring Boot - Application framework
+- Hibernate - ORM
+
+## Related Documentation
+
+- [Core Module](/development/modules/core) - Foundation entities and services
+- [Accounting Module](/development/modules/accounting) - Accounting integration details
+- [Loans Module](/development/modules/loans) - Loan management system

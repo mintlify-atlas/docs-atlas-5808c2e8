@@ -1,0 +1,303 @@
+---
+title: Global Settings
+description: Configure system-wide settings for OpenCBS Cloud
+---
+
+## Overview
+
+Global settings allow you to configure system-wide parameters that affect the behavior of OpenCBS. These settings control various aspects of the system including password policies, business rules, and operational parameters.
+
+## Global Settings Structure
+
+Each global setting consists of three components:
+
+<ParamField path="name" type="string" required>
+  Unique identifier for the setting (e.g., "PASSWORD_LENGTH", "UPPER_CASE")
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  Data type of the setting value (e.g., "INTEGER", "BOOLEAN", "STRING")
+</ParamField>
+
+<ParamField path="value" type="string" required>
+  The actual value of the setting stored as a string
+</ParamField>
+
+## Viewing Global Settings
+
+### Get All Settings
+
+Retrieve all global settings in the system:
+
+```bash
+GET /api/global-settings
+```
+
+Response example:
+```json
+[
+  {
+    "name": "PASSWORD_LENGTH",
+    "type": "INTEGER",
+    "value": "8"
+  },
+  {
+    "name": "UPPER_CASE",
+    "type": "BOOLEAN",
+    "value": "true"
+  },
+  {
+    "name": "NUMBERS",
+    "type": "BOOLEAN",
+    "value": "true"
+  }
+]
+```
+
+### Get Specific Setting
+
+Retrieve a single setting by name:
+
+```bash
+GET /api/global-settings/{name}
+```
+
+Example:
+```bash
+GET /api/global-settings/PASSWORD_LENGTH
+```
+
+Response:
+```json
+{
+  "name": "PASSWORD_LENGTH",
+  "type": "INTEGER",
+  "value": "8"
+}
+```
+
+<Note>
+  The setting name in the URL is case-sensitive and must match exactly.
+</Note>
+
+## Common Global Settings
+
+### Password Policy Settings
+
+These settings control password requirements for user accounts:
+
+<ParamField path="PASSWORD_LENGTH" type="INTEGER">
+  Minimum number of characters required for passwords (e.g., "8")
+</ParamField>
+
+<ParamField path="UPPER_CASE" type="BOOLEAN">
+  Whether passwords must contain at least one uppercase letter ("true" or "false")
+</ParamField>
+
+<ParamField path="NUMBERS" type="BOOLEAN">
+  Whether passwords must contain at least one digit ("true" or "false")
+</ParamField>
+
+### How Password Settings Work
+
+When a user creates or updates a password, the system:
+
+<Steps>
+  <Step title="Check Minimum Length">
+    Validates the password meets the minimum length specified in `PASSWORD_LENGTH`
+  </Step>
+  
+  <Step title="Check Uppercase Requirement">
+    If `UPPER_CASE` is true, ensures the password contains at least one uppercase letter (A-Z)
+  </Step>
+  
+  <Step title="Check Number Requirement">
+    If `NUMBERS` is true, ensures the password contains at least one digit (0-9)
+  </Step>
+  
+  <Step title="Accept or Reject">
+    The password is accepted only if all enabled requirements are met
+  </Step>
+</Steps>
+
+<Warning>
+  Changing password policy settings only affects new passwords. Existing passwords are not automatically invalidated.
+</Warning>
+
+## Setting Types
+
+Global settings support different data types:
+
+### INTEGER
+Numeric values without decimals.
+
+Example:
+```json
+{
+  "name": "PASSWORD_LENGTH",
+  "type": "INTEGER",
+  "value": "8"
+}
+```
+
+### BOOLEAN
+True/false values.
+
+Example:
+```json
+{
+  "name": "UPPER_CASE",
+  "type": "BOOLEAN",
+  "value": "true"
+}
+```
+
+### STRING
+Text values.
+
+Example:
+```json
+{
+  "name": "DEFAULT_CURRENCY",
+  "type": "STRING",
+  "value": "USD"
+}
+```
+
+### DECIMAL
+Numeric values with decimal places.
+
+Example:
+```json
+{
+  "name": "DEFAULT_INTEREST_RATE",
+  "type": "DECIMAL",
+  "value": "5.25"
+}
+```
+
+## Reading Settings in Code
+
+The OpenCBS code retrieves settings using the `SystemSettingsService`:
+
+```java
+Optional<SystemSettings> passLength = 
+    systemSettingsService.findByName(SystemSettingsName.PASSWORD_LENGTH);
+
+if (passLength.isPresent()) {
+    int passwordLength = Integer.parseInt(passLength.get().getValue());
+    // Use the value
+}
+```
+
+## Setting Categories
+
+Global settings typically fall into these categories:
+
+### Security Settings
+- Password policies
+- Session timeouts
+- Authentication requirements
+
+### Business Rules
+- Default interest rates
+- Penalty calculations
+- Grace periods
+
+### Operational Parameters
+- Default currency
+- Date formats
+- Fiscal year settings
+
+### System Configuration
+- Email server settings
+- Reporting parameters
+- Integration settings
+
+## Best Practices
+
+<Steps>
+  <Step title="Document Changes">
+    Keep a record of when and why global settings are modified, as they affect system-wide behavior.
+  </Step>
+  
+  <Step title="Test Before Production">
+    Test setting changes in a development or staging environment before applying to production.
+  </Step>
+  
+  <Step title="Coordinate Password Policies">
+    When changing password policies, notify users in advance and provide guidance on new requirements.
+  </Step>
+  
+  <Step title="Use Appropriate Types">
+    Ensure the setting type matches the expected data format to avoid parsing errors.
+  </Step>
+  
+  <Step title="Backup Before Changes">
+    Create a backup of current settings before making significant changes.
+  </Step>
+</Steps>
+
+<Warning>
+  Global settings affect the entire system. Incorrect values can cause unexpected behavior or prevent system operations.
+</Warning>
+
+## Common Use Cases
+
+### Enforcing Strong Passwords
+
+To require strong passwords:
+
+1. Set `PASSWORD_LENGTH` to at least 8
+2. Enable `UPPER_CASE` by setting it to "true"
+3. Enable `NUMBERS` by setting it to "true"
+
+This ensures users create passwords with:
+- Minimum 8 characters
+- At least one uppercase letter
+- At least one number
+
+### Relaxing Password Requirements
+
+For less restrictive password policies:
+
+1. Set `PASSWORD_LENGTH` to a lower value (e.g., "6")
+2. Set `UPPER_CASE` to "false"
+3. Set `NUMBERS` to "false"
+
+<Note>
+  Consider security implications before relaxing password requirements.
+</Note>
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/global-settings` | GET | List all global settings |
+| `/api/global-settings/{name}` | GET | Get specific setting by name |
+
+<Note>
+  The current implementation provides read-only access to global settings via the API. Updates may be handled through database administration or a separate admin interface.
+</Note>
+
+## Related Documentation
+
+- [User Management](/admin/user-management) - User password policies are enforced via global settings
+- [Permissions](/admin/permissions) - Control who can view or modify system settings
+
+## Troubleshooting
+
+### Setting Not Found
+
+If you receive a "Global setting not found" error:
+- Verify the setting name is spelled correctly
+- Check that the setting exists in the database
+- Ensure you're using the exact case-sensitive name
+
+### Invalid Value Type
+
+If a setting is not working as expected:
+- Verify the `type` matches the `value` format
+- For BOOLEAN, use only "true" or "false"
+- For INTEGER, ensure the value contains only digits
+- For DECIMAL, use proper decimal notation (e.g., "5.25")

@@ -1,0 +1,281 @@
+---
+title: 'Vaults'
+description: 'Manage vault operations for secure cash storage'
+---
+
+## Overview
+
+The Vaults API provides endpoints for managing vaults (secure cash storage facilities), including creation, retrieval, and updates of vault information.
+
+## Get All Vaults
+
+<CodeGroup>
+```http GET /api/vaults
+GET /api/vaults?page={page}&size={size}
+```
+</CodeGroup>
+
+Retrieve all vaults with pagination.
+
+### Query Parameters
+
+<ParamField query="page" type="integer">
+  Page number for pagination (0-based)
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of vault objects
+  <ResponseField name="id" type="long">
+    Vault ID
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Vault name
+  </ResponseField>
+  <ResponseField name="branchId" type="long">
+    Branch ID where the vault is located
+  </ResponseField>
+  <ResponseField name="accounts" type="array">
+    Array of accounts associated with the vault
+  </ResponseField>
+</ResponseField>
+
+## Get Vault by ID
+
+<CodeGroup>
+```http GET /api/vaults/{id}
+GET /api/vaults/{id}
+```
+</CodeGroup>
+
+Retrieve detailed information for a specific vault.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Vault ID
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Vault ID
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Vault name
+</ResponseField>
+
+<ResponseField name="branchId" type="long">
+  Branch ID where the vault is located
+</ResponseField>
+
+<ResponseField name="branchName" type="string">
+  Branch name
+</ResponseField>
+
+<ResponseField name="accounts" type="array">
+  Array of accounts associated with the vault (sorted by currency name)
+  <ResponseField name="id" type="long">
+    Account ID
+  </ResponseField>
+  <ResponseField name="number" type="string">
+    Account number
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Account name
+  </ResponseField>
+  <ResponseField name="currencyId" type="long">
+    Currency ID
+  </ResponseField>
+  <ResponseField name="currencyName" type="string">
+    Currency name
+  </ResponseField>
+  <ResponseField name="balance" type="decimal">
+    Current account balance
+  </ResponseField>
+</ResponseField>
+
+## Create Vault
+
+<CodeGroup>
+```http POST /api/vaults
+POST /api/vaults
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "name": "Main Branch Vault",
+  "branchId": 1,
+  "currencyIds": [1, 2, 3]
+}
+```
+</CodeGroup>
+
+Create a new vault with accounts for specified currencies.
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Vault name
+</ParamField>
+
+<ParamField body="branchId" type="long" required>
+  Branch ID where the vault will be located
+</ParamField>
+
+<ParamField body="currencyIds" type="array" required>
+  Array of currency IDs for which accounts should be created
+</ParamField>
+
+### Response
+
+Returns the created vault object with the same structure as Get Vault by ID.
+
+### Example Response
+
+```json
+{
+  "id": 5,
+  "name": "Main Branch Vault",
+  "branchId": 1,
+  "branchName": "Main Branch",
+  "accounts": [
+    {
+      "id": 100,
+      "number": "1000-VAULT-USD",
+      "name": "Main Branch Vault - USD",
+      "currencyId": 1,
+      "currencyName": "USD",
+      "balance": 0.00
+    },
+    {
+      "id": 101,
+      "number": "1000-VAULT-EUR",
+      "name": "Main Branch Vault - EUR",
+      "currencyId": 2,
+      "currencyName": "EUR",
+      "balance": 0.00
+    }
+  ]
+}
+```
+
+## Update Vault
+
+<CodeGroup>
+```http PUT /api/vaults/{id}
+PUT /api/vaults/{id}
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "name": "Updated Vault Name",
+  "branchId": 1,
+  "currencyIds": [1, 2, 3, 4]
+}
+```
+</CodeGroup>
+
+Update an existing vault.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Vault ID
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Updated vault name
+</ParamField>
+
+<ParamField body="branchId" type="long" required>
+  Branch ID (can be changed to move vault to different branch)
+</ParamField>
+
+<ParamField body="currencyIds" type="array" required>
+  Array of currency IDs (accounts will be created for new currencies)
+</ParamField>
+
+### Response
+
+Returns the updated vault object with the same structure as Get Vault by ID.
+
+### Example Response
+
+```json
+{
+  "id": 5,
+  "name": "Updated Vault Name",
+  "branchId": 1,
+  "branchName": "Main Branch",
+  "accounts": [
+    {
+      "id": 101,
+      "number": "1000-VAULT-EUR",
+      "name": "Updated Vault Name - EUR",
+      "currencyId": 2,
+      "currencyName": "EUR",
+      "balance": 5000.00
+    },
+    {
+      "id": 100,
+      "number": "1000-VAULT-USD",
+      "name": "Updated Vault Name - USD",
+      "currencyId": 1,
+      "currencyName": "USD",
+      "balance": 10000.00
+    }
+  ]
+}
+```
+
+## Vault Operations
+
+Vaults interact with tills through transfer operations. See the [Tills API](/api/tills) for transfer endpoints:
+
+- **Transfer to Vault**: `POST /api/tills/transfer/vault`
+- **Transfer from Vault**: `POST /api/tills/transfer/till`
+
+These operations allow moving funds between tills and vaults while maintaining proper accounting entries.
+
+## Account Structure
+
+Each vault automatically creates accounts for each specified currency. These accounts:
+
+- Are linked to the branch's chart of accounts
+- Track cash balances for each currency separately
+- Follow standard double-entry accounting principles
+- Maintain audit trails for all transactions
+- Are sorted alphabetically by currency name in API responses
+
+## Best Practices
+
+### Vault Setup
+
+1. Create vaults at the branch level
+2. Configure all currencies that will be handled at that branch
+3. Ensure proper permissions are assigned for vault operations
+
+### Cash Management
+
+1. Transfer excess till cash to vaults at end of day
+2. Replenish tills from vaults at start of day
+3. Regularly reconcile vault balances with physical cash counts
+4. Maintain proper documentation for all vault transfers
+
+### Security
+
+1. Limit access to vault operations based on user roles
+2. Require dual authorization for large transfers
+3. Implement maker-checker workflows for vault creation/updates
+4. Review vault operation logs regularly for audit purposes

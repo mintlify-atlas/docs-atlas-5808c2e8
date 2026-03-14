@@ -1,0 +1,616 @@
+---
+title: "Loan Products API"
+description: "Configure and manage loan product templates"
+---
+
+The Loan Products API allows you to create and manage loan product configurations that define the terms, interest rates, fees, and other parameters for different types of loans offered by your institution.
+
+## Get All Loan Products
+
+<Expandable title="GET /api/loan-products">
+  Retrieve all loan products with pagination.
+
+  <ParamField query="page" type="integer">
+    Page number for pagination (0-indexed)
+  </ParamField>
+
+  <ParamField query="size" type="integer">
+    Number of results per page
+  </ParamField>
+
+  <ParamField query="show_all" type="boolean" default="false">
+    If true, returns all products including inactive ones. If false, returns only active products.
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="content" type="array">
+    Array of loan product objects
+    
+    <Expandable title="Loan Product Object">
+      <ResponseField name="id" type="long">
+        Loan product identifier
+      </ResponseField>
+
+      <ResponseField name="name" type="string">
+        Product name
+      </ResponseField>
+
+      <ResponseField name="code" type="string">
+        Unique product code
+      </ResponseField>
+
+      <ResponseField name="status" type="string">
+        Product status (ACTIVE or INACTIVE)
+      </ResponseField>
+
+      <ResponseField name="currencyId" type="long">
+        Currency identifier
+      </ResponseField>
+
+      <ResponseField name="hasPayees" type="boolean">
+        Whether the product supports payees (disbursement to multiple parties)
+      </ResponseField>
+
+      <ResponseField name="amountMin" type="decimal">
+        Minimum loan amount
+      </ResponseField>
+
+      <ResponseField name="amountMax" type="decimal">
+        Maximum loan amount
+      </ResponseField>
+
+      <ResponseField name="interestRateMin" type="decimal">
+        Minimum interest rate
+      </ResponseField>
+
+      <ResponseField name="interestRateMax" type="decimal">
+        Maximum interest rate
+      </ResponseField>
+
+      <ResponseField name="maturityMin" type="integer">
+        Minimum loan term
+      </ResponseField>
+
+      <ResponseField name="maturityMax" type="integer">
+        Maximum loan term
+      </ResponseField>
+
+      <ResponseField name="scheduleType" type="string">
+        Default schedule type (ANNUITY, FLAT, DECLINING_BALANCE, etc.)
+      </ResponseField>
+
+      <ResponseField name="availability" type="array">
+        Array of profile types this product is available for (PERSON, COMPANY, GROUP)
+      </ResponseField>
+
+      <ResponseField name="provisioning" type="array">
+        Provisioning rules for the product
+      </ResponseField>
+    </Expandable>
+  </ResponseField>
+
+  <ResponseField name="totalElements" type="long">
+    Total number of products
+  </ResponseField>
+
+  <ResponseField name="totalPages" type="integer">
+    Total number of pages
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-products?page=0&size=20" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-products?page=0&size=20', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const products = await response.json();
+  ```
+
+  ```python Python
+  import requests
+
+  response = requests.get(
+    'https://api.opencbs.com/api/loan-products',
+    params={'page': 0, 'size': 20},
+    headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+  )
+  products = response.json()
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Loan Product by ID
+
+<Expandable title="GET /api/loan-products/{id}">
+  Retrieve detailed information about a specific loan product.
+
+  <ParamField path="id" type="long" required>
+    Loan product identifier
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="id" type="long">
+    Loan product identifier
+  </ResponseField>
+
+  <ResponseField name="name" type="string">
+    Product name
+  </ResponseField>
+
+  <ResponseField name="code" type="string">
+    Unique product code
+  </ResponseField>
+
+  <ResponseField name="currencyId" type="long">
+    Currency identifier
+  </ResponseField>
+
+  <ResponseField name="amountMin" type="decimal">
+    Minimum loan amount
+  </ResponseField>
+
+  <ResponseField name="amountMax" type="decimal">
+    Maximum loan amount
+  </ResponseField>
+
+  <ResponseField name="interestRateMin" type="decimal">
+    Minimum annual interest rate
+  </ResponseField>
+
+  <ResponseField name="interestRateMax" type="decimal">
+    Maximum annual interest rate
+  </ResponseField>
+
+  <ResponseField name="maturityMin" type="integer">
+    Minimum loan term (in days or months based on schedule type)
+  </ResponseField>
+
+  <ResponseField name="maturityMax" type="integer">
+    Maximum loan term
+  </ResponseField>
+
+  <ResponseField name="gracePeriodMin" type="integer">
+    Minimum grace period
+  </ResponseField>
+
+  <ResponseField name="gracePeriodMax" type="integer">
+    Maximum grace period
+  </ResponseField>
+
+  <ResponseField name="scheduleType" type="string">
+    Default schedule generation type
+  </ResponseField>
+
+  <ResponseField name="scheduleBasedType" type="string">
+    Schedule based on DAILY_INSTALLMENT or MONTHLY_INSTALLMENT
+  </ResponseField>
+
+  <ResponseField name="hasPayees" type="boolean">
+    Supports multiple payees for disbursement
+  </ResponseField>
+
+  <ResponseField name="fees" type="array">
+    Array of fee IDs associated with this product
+  </ResponseField>
+
+  <ResponseField name="penalties" type="array">
+    Array of penalty IDs associated with this product
+  </ResponseField>
+
+  <ResponseField name="accountList" type="object">
+    Chart of accounts mapping for this product
+  </ResponseField>
+
+  <ResponseField name="topUpAllow" type="boolean">
+    Whether top-up loans are allowed
+  </ResponseField>
+
+  <ResponseField name="topUpMaxLimit" type="decimal">
+    Maximum top-up amount
+  </ResponseField>
+
+  <ResponseField name="topUpMaxOlb" type="decimal">
+    Maximum outstanding loan balance allowed for top-up
+  </ResponseField>
+
+  <ResponseField name="earlyPartialRepaymentFeeType" type="string">
+    Fee type for early partial repayment (NONE, FLAT_AMOUNT, PERCENTAGE)
+  </ResponseField>
+
+  <ResponseField name="earlyPartialRepaymentFeeValue" type="decimal">
+    Early partial repayment fee value
+  </ResponseField>
+
+  <ResponseField name="earlyTotalRepaymentFeeType" type="string">
+    Fee type for early total repayment
+  </ResponseField>
+
+  <ResponseField name="earlyTotalRepaymentFeeValue" type="decimal">
+    Early total repayment fee value
+  </ResponseField>
+
+  <ResponseField name="maturityDateMax" type="date">
+    Maximum allowed maturity date
+  </ResponseField>
+
+  <ResponseField name="availability" type="array">
+    Profile types this product is available for
+  </ResponseField>
+
+  <ResponseField name="provisioning" type="array">
+    Provisioning rules configuration
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-products/1" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-products/1', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const product = await response.json();
+  ```
+
+  ```python Python
+  import requests
+
+  response = requests.get(
+    'https://api.opencbs.com/api/loan-products/1',
+    headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+  )
+  product = response.json()
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Create Loan Product
+
+<Expandable title="POST /api/loan-products">
+  Create a new loan product. This creates a maker-checker request that requires approval.
+
+  **Request Body**
+
+  <ParamField body="name" type="string" required>
+    Product name
+  </ParamField>
+
+  <ParamField body="code" type="string" required>
+    Unique product code
+  </ParamField>
+
+  <ParamField body="currencyId" type="long" required>
+    Currency identifier
+  </ParamField>
+
+  <ParamField body="amountMin" type="decimal" required>
+    Minimum loan amount
+  </ParamField>
+
+  <ParamField body="amountMax" type="decimal" required>
+    Maximum loan amount
+  </ParamField>
+
+  <ParamField body="interestRateMin" type="decimal" required>
+    Minimum interest rate
+  </ParamField>
+
+  <ParamField body="interestRateMax" type="decimal" required>
+    Maximum interest rate
+  </ParamField>
+
+  <ParamField body="maturityMin" type="integer" required>
+    Minimum loan term
+  </ParamField>
+
+  <ParamField body="maturityMax" type="integer" required>
+    Maximum loan term
+  </ParamField>
+
+  <ParamField body="gracePeriodMin" type="integer">
+    Minimum grace period (default: 0)
+  </ParamField>
+
+  <ParamField body="gracePeriodMax" type="integer">
+    Maximum grace period (default: 0)
+  </ParamField>
+
+  <ParamField body="scheduleType" type="string" required>
+    Schedule generation type
+  </ParamField>
+
+  <ParamField body="scheduleBasedType" type="string">
+    DAILY_INSTALLMENT or MONTHLY_INSTALLMENT
+  </ParamField>
+
+  <ParamField body="hasPayees" type="boolean">
+    Enable multiple payees
+  </ParamField>
+
+  <ParamField body="fees" type="array">
+    Array of fee IDs to associate
+  </ParamField>
+
+  <ParamField body="penalties" type="array">
+    Array of penalty IDs to associate
+  </ParamField>
+
+  <ParamField body="accountList" type="object" required>
+    Chart of accounts mapping
+  </ParamField>
+
+  <ParamField body="topUpAllow" type="boolean">
+    Allow top-up loans
+  </ParamField>
+
+  <ParamField body="earlyPartialRepaymentFeeType" type="string">
+    Early partial repayment fee type
+  </ParamField>
+
+  <ParamField body="earlyPartialRepaymentFeeValue" type="decimal">
+    Early partial repayment fee value
+  </ParamField>
+
+  <ParamField body="availability" type="array" required>
+    Profile types (e.g., ["PERSON", "COMPANY"])
+  </ParamField>
+
+  <ParamField body="provisioning" type="array">
+    Provisioning rules
+  </ParamField>
+
+  **Response**
+
+  <ResponseField name="id" type="long">
+    Maker-checker request ID (requires approval before product is created)
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.opencbs.com/api/loan-products" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "name": "Personal Loan",
+      "code": "PL001",
+      "currencyId": 1,
+      "amountMin": 1000,
+      "amountMax": 50000,
+      "interestRateMin": 5.0,
+      "interestRateMax": 18.0,
+      "maturityMin": 6,
+      "maturityMax": 60,
+      "scheduleType": "ANNUITY",
+      "availability": ["PERSON"],
+      "accountList": {...}
+    }'
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-products', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: 'Personal Loan',
+      code: 'PL001',
+      currencyId: 1,
+      amountMin: 1000,
+      amountMax: 50000,
+      interestRateMin: 5.0,
+      interestRateMax: 18.0,
+      maturityMin: 6,
+      maturityMax: 60,
+      scheduleType: 'ANNUITY',
+      availability: ['PERSON'],
+      accountList: {...}
+    })
+  });
+  const request = await response.json();
+  ```
+
+  ```python Python
+  import requests
+
+  response = requests.post(
+    'https://api.opencbs.com/api/loan-products',
+    headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'},
+    json={
+      'name': 'Personal Loan',
+      'code': 'PL001',
+      'currencyId': 1,
+      'amountMin': 1000,
+      'amountMax': 50000,
+      'interestRateMin': 5.0,
+      'interestRateMax': 18.0,
+      'maturityMin': 6,
+      'maturityMax': 60,
+      'scheduleType': 'ANNUITY',
+      'availability': ['PERSON'],
+      'accountList': {...}
+    }
+  )
+  request = response.json()
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Update Loan Product
+
+<Expandable title="PUT /api/loan-products/{id}">
+  Update an existing loan product. Creates a maker-checker request that requires approval.
+
+  <ParamField path="id" type="long" required>
+    Loan product identifier
+  </ParamField>
+
+  **Request Body**: Same structure as Create Loan Product
+
+  **Response**
+
+  <ResponseField name="id" type="long">
+    Maker-checker request ID
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X PUT "https://api.opencbs.com/api/loan-products/1" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "name": "Updated Personal Loan",
+      "code": "PL001",
+      "interestRateMax": 20.0,
+      ...
+    }'
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-products/1', {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: 'Updated Personal Loan',
+      code: 'PL001',
+      interestRateMax: 20.0,
+      // ... other fields
+    })
+  });
+  const request = await response.json();
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Lookup Loan Products
+
+<Expandable title="GET /api/loan-products/lookup">
+  Search and filter loan products with advanced criteria.
+
+  <ParamField query="profileType" type="string">
+    Filter by profile type (PERSON, COMPANY, GROUP)
+  </ParamField>
+
+  <ParamField query="currencyId" type="long">
+    Filter by currency
+  </ParamField>
+
+  <ParamField query="search" type="string">
+    Search term for product name or code
+  </ParamField>
+
+  <ParamField query="page" type="integer">
+    Page number
+  </ParamField>
+
+  <ParamField query="size" type="integer">
+    Results per page
+  </ParamField>
+
+  **Response**: Paginated list of simplified loan product objects (id, name, code)
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-products/lookup?profileType=PERSON&currencyId=1" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+  ```javascript JavaScript
+  const response = await fetch('https://api.opencbs.com/api/loan-products/lookup?profileType=PERSON&currencyId=1', {
+    headers: {
+      'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+    }
+  });
+  const products = await response.json();
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Account Rule Types
+
+<Expandable title="GET /api/loan-products/account-rules">
+  Retrieve all available account rule types for loan product configuration.
+
+  **Response**: Array of account rule type enums (e.g., CASH_RECEIPT, LOAN_LOSS_RESERVE, etc.)
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-products/account-rules" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Product History
+
+<Expandable title="GET /api/loan-products/{id}/history">
+  Retrieve all historical revisions of a loan product.
+
+  <ParamField path="id" type="long" required>
+    Loan product identifier
+  </ParamField>
+
+  **Response**: Array of history objects showing all changes to the product.
+
+  <ResponseField name="revisionId" type="long">
+    Revision identifier
+  </ResponseField>
+
+  <ResponseField name="revisionDate" type="datetime">
+    When the revision was created
+  </ResponseField>
+
+  <ResponseField name="revisionType" type="string">
+    Type of change (CREATE, UPDATE, DELETE)
+  </ResponseField>
+
+  <ResponseField name="author" type="object">
+    User who made the change
+  </ResponseField>
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-products/1/history" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>
+
+## Get Product Revision at Date
+
+<Expandable title="GET /api/loan-products/{id}/history/last_change">
+  Retrieve the product configuration as it was at a specific date and time.
+
+  <ParamField path="id" type="long" required>
+    Loan product identifier
+  </ParamField>
+
+  <ParamField query="dateTime" type="datetime" required>
+    Date and time in ISO format (e.g., 2024-03-15T10:30:00)
+  </ParamField>
+
+  **Response**: Product configuration at the specified date/time.
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X GET "https://api.opencbs.com/api/loan-products/1/history/last_change?dateTime=2024-03-15T10:30:00" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+  </CodeGroup>
+</Expandable>

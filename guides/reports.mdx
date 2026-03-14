@@ -1,0 +1,424 @@
+---
+title: Generating Reports
+description: Comprehensive guide to running and exporting reports in OpenCBS Cloud
+---
+
+OpenCBS Cloud provides a powerful reporting system to help you analyze your institution's performance, monitor portfolio quality, and generate regulatory reports.
+
+## Accessing Reports
+
+Navigate to reports:
+
+1. Click **Reports** in the main navigation menu
+2. Browse available reports by category
+3. Select the report you want to run
+
+## Available Report Categories
+
+Reports are typically organized into categories:
+
+### Portfolio Reports
+- Outstanding loan portfolio
+- Portfolio at risk (PAR)
+- Loan aging analysis
+- Delinquency reports
+- Portfolio by product
+- Portfolio by branch/officer
+
+### Financial Reports
+- Income statement
+- Balance sheet
+- Cash flow statement
+- Trial balance
+- General ledger
+
+### Operations Reports
+- Disbursements report
+- Repayments report
+- Teller transactions
+- Daily cash position
+- Transaction summary
+
+### Client Reports
+- Client list
+- Active clients
+- Client portfolio
+- Client transactions
+
+### Regulatory Reports
+- Regulatory submissions
+- Compliance reports
+- Audit reports
+- Risk reports
+
+<Note>
+  Available reports depend on your institution's configuration and your user permissions. Contact your system administrator if you need access to specific reports.
+</Note>
+
+## Running a Report
+
+<Steps>
+  <Step title="Select Report">
+    From the report list, click on the report you want to run:
+    - View report description
+    - Check required parameters
+    - Review available output formats
+  </Step>
+
+  <Step title="Set Report Parameters">
+    Configure the report parameters:
+
+    ### Common Parameters
+
+    **Date Range**
+    - From date
+    - To date
+    - As of date (for point-in-time reports)
+
+    **Filters**
+    - Branch/office
+    - Loan officer
+    - Product type
+    - Client type
+    - Status
+
+    **Grouping**
+    - Group by branch
+    - Group by product
+    - Group by officer
+
+    <Tip>
+      Required parameters are marked with an asterisk (*). The report cannot run until all required parameters are provided.
+    </Tip>
+  </Step>
+
+  <Step title="Preview Report">
+    Click **Generate** or **Preview**:
+    - Report renders in HTML format
+    - Review data for accuracy
+    - Verify date ranges and filters
+    - Check calculations and totals
+  </Step>
+
+  <Step title="Export Report (Optional)">
+    Export the report in your desired format:
+    - **PDF** - For printing and archiving
+    - **Excel (XLSX)** - For further analysis
+    - **CSV** - For data import/integration
+
+    Click the format button to download the file.
+  </Step>
+</Steps>
+
+## Report Generation API
+
+### Get Report HTML
+
+Generate report preview:
+```
+POST /reports/html
+```
+
+Request body:
+```json
+{
+  "reportName": "portfolio_outstanding",
+  "reportLabel": "Outstanding Portfolio Report",
+  "fieldsValues": {
+    "fromDate": "2024-01-01",
+    "toDate": "2024-12-31",
+    "branch": "1",
+    "format": "HTML"
+  }
+}
+```
+
+### Export Report File
+
+Generate downloadable report:
+```
+POST /reports/file
+```
+
+Request body:
+```json
+{
+  "reportName": "portfolio_outstanding",
+  "reportLabel": "Outstanding Portfolio Report",
+  "fieldsValues": {
+    "fromDate": "2024-01-01",
+    "toDate": "2024-12-31",
+    "branch": "1",
+    "format": "PDF"  // or "EXCEL" or "CSV"
+  }
+}
+```
+
+Response: Binary file download
+
+## Export Formats
+
+### PDF Format
+
+**Best for:**
+- Official documentation
+- Printing
+- Archiving
+- Sharing with stakeholders
+- Board presentations
+
+**Features:**
+- Professional formatting
+- Headers and footers
+- Page numbers
+- Charts and graphics preserved
+
+### Excel Format (XLSX)
+
+**Best for:**
+- Data analysis
+- Creating custom charts
+- Further calculations
+- Pivot tables
+- Data manipulation
+
+**Features:**
+- Editable data
+- Formulas preserved
+- Multiple worksheets
+- Filtering and sorting
+
+### CSV Format
+
+**Best for:**
+- Data integration
+- Import to other systems
+- Database loading
+- Simple data exchange
+- Lightweight file size
+
+**Features:**
+- Plain text format
+- Universal compatibility
+- Easy parsing
+- Minimal file size
+
+## Key Portfolio Reports
+
+### Portfolio at Risk (PAR)
+
+Measures loan portfolio quality:
+
+- **PAR > 0 days** - Any late payment
+- **PAR > 30 days** - Payment over 30 days late
+- **PAR > 60 days** - Payment over 60 days late
+- **PAR > 90 days** - Payment over 90 days late
+
+Calculation:
+```
+PAR = (Outstanding balance of loans with overdue payments) / (Total outstanding portfolio)
+```
+
+### Outstanding Loan Portfolio
+
+Shows current portfolio composition:
+- Total outstanding principal
+- Number of active loans
+- Average loan size
+- Breakdown by product/branch/officer
+
+### Disbursement Report
+
+Tracks loan disbursements:
+- Loans disbursed in period
+- Total disbursement amount
+- By product, branch, officer
+- Disbursement trends
+
+### Collection Report
+
+Monitors repayment performance:
+- Expected collections
+- Actual collections
+- Collection rate/efficiency
+- Outstanding arrears
+
+## Financial Reports
+
+### Income Statement (P&L)
+
+- Interest income
+- Fee income
+- Operating expenses
+- Net income/loss
+- Period comparison
+
+### Balance Sheet
+
+- Assets (loans, cash, fixed assets)
+- Liabilities (deposits, borrowings)
+- Equity
+- As of specific date
+
+### Trial Balance
+
+- All account balances
+- Debits and credits
+- Verification of balanced books
+- Detailed or summary view
+
+## Scheduled Reports
+
+Automate report generation:
+
+- Schedule reports to run automatically
+- Daily, weekly, monthly frequencies
+- Email delivery to stakeholders
+- Saved in report archive
+
+<Note>
+  Scheduled reports functionality depends on your institution's configuration. Contact your administrator to set up automated reports.
+</Note>
+
+## Custom Reports
+
+Create institution-specific reports:
+
+- Custom report builder
+- Select data sources
+- Define parameters
+- Design layout
+- Save for reuse
+
+## Report Permissions
+
+Access to reports is controlled by permissions:
+
+- VIEW_REPORTS - View and run reports
+- EXPORT_REPORTS - Export to PDF/Excel/CSV
+- MANAGE_REPORTS - Create and modify reports
+- Financial reports may require additional permissions
+
+## Performance Considerations
+
+<Tip>
+  **For Large Reports:**
+  - Use specific date ranges rather than "all dates"
+  - Apply filters to limit data volume
+  - Export to Excel/CSV for very large datasets
+  - Run resource-intensive reports during off-peak hours
+  - Consider using summary reports instead of detailed reports
+</Tip>
+
+## Saving Report Parameters
+
+Save frequently used report configurations:
+
+1. Set all parameters
+2. Click "Save Parameters" or "Favorites"
+3. Name the configuration
+4. Reuse later with one click
+
+## Report Archive
+
+Previously generated reports may be saved:
+
+- Access report history
+- Re-download past reports
+- Compare period-over-period
+- Audit trail of reports run
+
+## Data Accuracy
+
+### Ensuring Accurate Reports
+
+<Steps>
+  <Step title="Data Entry">
+    Accurate data in = accurate reports out:
+    - Enter transactions promptly
+    - Verify client information
+    - Complete all required fields
+  </Step>
+
+  <Step title="Reconciliation">
+    Regular reconciliation:
+    - Daily cash reconciliation
+    - Monthly account reconciliation
+    - Verify loan balances
+    - Check for data anomalies
+  </Step>
+
+  <Step title="Period Closing">
+    Proper period closing:
+    - Close periods on time
+    - Review closing reports
+    - Resolve discrepancies before closing
+    - Archive closed period reports
+  </Step>
+</Steps>
+
+## Common Report Issues
+
+| Issue | Solution |
+|-------|----------|
+| Report shows no data | Verify date range and filters |
+| Numbers don't match expectations | Check as-of date and transaction timing |
+| Report times out | Narrow date range or apply more filters |
+| Export fails | Try smaller date range or CSV format |
+| Missing transactions | Verify transaction status and dates |
+| Permission denied | Contact administrator for report access |
+
+## Regulatory Reporting
+
+For regulatory compliance:
+
+- Central bank reports
+- Regulatory submissions
+- Statutory returns
+- Compliance reports
+
+<Note>
+  Regulatory reports must be accurate and timely. Review carefully before submission and maintain copies for audit purposes.
+</Note>
+
+## Best Practices
+
+<Tip>
+  **Reporting Best Practices**
+  - Run reports regularly (daily, weekly, monthly)
+  - Review for unusual trends or anomalies
+  - Compare actual vs. budget/targets
+  - Archive important reports with date stamps
+  - Document any data corrections or adjustments
+  - Cross-verify key numbers with source data
+  - Use consistent parameters for trend analysis
+  - Share reports with relevant stakeholders promptly
+</Tip>
+
+## Report Analysis Tips
+
+### Portfolio Quality Monitoring
+- Track PAR trends over time
+- Identify problem areas early
+- Monitor by loan officer performance
+- Review restructured loans separately
+
+### Financial Analysis
+- Compare actual vs. budget
+- Analyze revenue trends
+- Monitor expense ratios
+- Track profitability by product
+
+### Operational Efficiency
+- Loan processing time
+- Application approval rates
+- Disbursement volumes
+- Collection efficiency rates
+
+## Next Steps
+
+- Schedule regular report reviews
+- Set up automated report delivery
+- Create custom reports for your needs
+- Train staff on report interpretation
+- Establish reporting calendar and responsibilities

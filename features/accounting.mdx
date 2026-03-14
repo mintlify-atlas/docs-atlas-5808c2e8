@@ -1,0 +1,537 @@
+---
+title: Accounting
+description: Double-entry accounting system with chart of accounts and automated GL posting
+---
+
+## Overview
+
+OpenCBS Cloud implements a comprehensive double-entry accounting system with a hierarchical chart of accounts, automated journal entries, and full audit trail. Every transaction in the system automatically generates corresponding accounting entries to maintain balanced books.
+
+<CardGroup cols={2}>
+  <Card title="Chart of Accounts" icon="sitemap">
+    Hierarchical account structure with nested sub-accounts
+  </Card>
+  <Card title="Double-Entry System" icon="scale-balanced">
+    Every transaction creates balanced debit and credit entries
+  </Card>
+  <Card title="Accounting Entries" icon="book">
+    Complete journal entry tracking with audit trail
+  </Card>
+  <Card title="Branch Accounting" icon="code-branch">
+    Multi-branch support with branch-specific GL accounts
+  </Card>
+</CardGroup>
+
+## Chart of Accounts
+
+### Account Structure
+
+The system uses a hierarchical account structure modeled with nested sets:
+
+```java
+@Entity
+@Table(name = "accounts")
+public class Account extends NamedBaseEntity {
+    @Column(name = "number", nullable = false)
+    private String number;
+    
+    @Column(name = "is_debit", nullable = false)
+    private Boolean isDebit;
+    
+    @Column(name = "lft")
+    private Integer lft;
+    
+    @Column(name = "rgt")
+    private Integer rgt;
+    
+    @Column(name = "start_date", nullable = false)
+    private LocalDateTime startDate;
+    
+    @Column(name = "close_date")
+    private LocalDateTime closeDate;
+    
+    @Column(name = "type")
+    private AccountType type;
+    
+    @ManyToOne
+    @JoinColumn(name = "currency_id")
+    private Currency currency;
+    
+    @ManyToOne
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
+    
+    @Column(name = "validate_off")
+    private Boolean validateOff;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Account parent;
+    
+    @Column(name = "locked", nullable = false)
+    private Boolean locked;
+    
+    @Formula(value = "(exists(select * from accounts a where a.parent_id = id))")
+    private Boolean hasChildren;
+}
+```
+
+<Accordion title="Account Fields Explained">
+  - **Number**: Account code/number (e.g., "1000", "1100-01")
+  - **Name**: Account description (e.g., "Cash on Hand", "Loan Portfolio")
+  - **Is Debit**: Account normal balance (true = debit, false = credit)
+  - **Type**: Account classification (ASSET, LIABILITY, EQUITY, INCOME, EXPENSE)
+  - **lft/rgt**: Nested set model for hierarchy (enables efficient tree queries)
+  - **Parent**: Parent account for hierarchical structure
+  - **Currency**: Account currency (multi-currency support)
+  - **Branch**: Branch-specific account (null = organization-wide)
+  - **Start Date**: When account became active
+  - **Close Date**: When account was closed (null = active)
+  - **Locked**: Prevents transactions when true
+  - **Validate Off**: Allows negative balances when true
+  - **Has Children**: Computed field indicating parent accounts
+</Accordion>
+
+### Account Types
+
+```java
+public enum AccountType {
+    ASSET,
+    LIABILITY,
+    EQUITY,
+    INCOME,
+    EXPENSE
+}
+```
+
+**Standard Account Categories:**
+
+<Tabs>
+  <Tab title="Assets">
+    **Asset Accounts** (Normal Debit Balance)
+    
+    - Cash and Bank Accounts
+      - Cash on Hand
+      - Bank Current Accounts
+      - Petty Cash
+    
+    - Loan Portfolio
+      - Principal Outstanding
+      - Interest Receivable
+      - Fees Receivable
+    
+    - Fixed Assets
+      - Land and Buildings
+      - Equipment
+      - Accumulated Depreciation (contra-asset)
+    
+    - Other Assets
+      - Prepaid Expenses
+      - Deposits
+  </Tab>
+  
+  <Tab title="Liabilities">
+    **Liability Accounts** (Normal Credit Balance)
+    
+    - Client Deposits
+      - Savings Accounts
+      - Time Deposits
+      - Current Accounts
+    
+    - Borrowings
+      - Bank Loans
+      - Bonds Payable
+    
+    - Other Liabilities
+      - Accrued Expenses
+      - Payables
+  </Tab>
+  
+  <Tab title="Equity">
+    **Equity Accounts** (Normal Credit Balance)
+    
+    - Share Capital
+    - Retained Earnings
+    - Current Year Profit/Loss
+    - Reserves
+  </Tab>
+  
+  <Tab title="Income">
+    **Income Accounts** (Normal Credit Balance)
+    
+    - Interest Income
+      - Loan Interest Income
+      - Investment Income
+    
+    - Fee Income
+      - Loan Fees
+      - Service Charges
+      - Penalty Income
+    
+    - Other Income
+  </Tab>
+  
+  <Tab title="Expenses">
+    **Expense Accounts** (Normal Debit Balance)
+    
+    - Interest Expense
+      - Savings Interest Expense
+      - Borrowing Interest Expense
+    
+    - Operating Expenses
+      - Salaries and Benefits
+      - Rent
+      - Utilities
+      - Depreciation
+    
+    - Loan Loss Provisions
+      - Provision Expense
+      - Write-offs
+  </Tab>
+</Tabs>
+
+### Hierarchical Structure
+
+The nested set model (`lft` and `rgt` columns) enables efficient hierarchy queries:
+
+```
+1000 - Assets (lft=1, rgt=20)
+  1100 - Current Assets (lft=2, rgt=15)
+    1110 - Cash (lft=3, rgt=8)
+      1111 - Cash on Hand (lft=4, rgt=5)
+      1112 - Bank Accounts (lft=6, rgt=7)
+    1120 - Loan Portfolio (lft=9, rgt=14)
+      1121 - Principal Outstanding (lft=10, rgt=11)
+      1122 - Interest Receivable (lft=12, rgt=13)
+  1200 - Fixed Assets (lft=16, rgt=19)
+    1210 - Equipment (lft=17, rgt=18)
+```
+
+<Note>
+  Parent accounts (those with children) typically cannot have transactions posted directly. Only leaf accounts accept journal entries.
+</Note>
+
+### Account Controls
+
+```java
+@Column(name = "locked", nullable = false)
+private Boolean locked;
+
+@Column(name = "allowed_transfer_from", nullable = false)
+private Boolean allowedTransferFrom;
+
+@Column(name = "allowed_transfer_to", nullable = false)
+private Boolean allowedTransferTo;
+
+@Column(name = "allowed_cash_deposit", nullable = false)
+private Boolean allowedCashDeposit;
+
+@Column(name = "allowed_cash_withdrawal", nullable = false)
+private Boolean allowedCashWithdrawal;
+
+@Column(name = "allowed_manual_transaction", nullable = false)
+private Boolean allowedManualTransaction;
+```
+
+**Control Flags:**
+- **Locked**: Account cannot receive any transactions
+- **Allowed Transfer From**: Can be debited in transfer transactions
+- **Allowed Transfer To**: Can be credited in transfer transactions
+- **Allowed Cash Deposit**: Can receive cash deposits
+- **Allowed Cash Withdrawal**: Can disburse cash withdrawals
+- **Allowed Manual Transaction**: Accepts manual journal entries
+
+## Double-Entry Accounting
+
+### Accounting Entries
+
+Every transaction creates balanced accounting entries:
+
+```java
+@Entity
+@Table(name = "accounting_entries")
+public class AccountingEntry extends BaseEntity {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "debit_account_id", nullable = false)
+    private Account debitAccount;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_account_id", nullable = false)
+    private Account creditAccount;
+    
+    @Column(name = "amount", precision = 14, scale = 2, nullable = false)
+    private BigDecimal amount;
+    
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+    
+    @Column(name = "effective_at")
+    private LocalDateTime effectiveAt;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id")
+    private User createdBy;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
+    
+    @Column(name = "description", nullable = false)
+    private String description;
+    
+    @Type(type = "ExtraJsonType")
+    @Column(name = "extra", columnDefinition = "jsonb")
+    private ExtraJson extra;
+    
+    @Column(name = "deleted")
+    private Boolean deleted = false;
+}
+```
+
+<Accordion title="Entry Components">
+  - **Debit Account**: Account to debit (increase asset/expense, decrease liability/income/equity)
+  - **Credit Account**: Account to credit (decrease asset/expense, increase liability/income/equity)
+  - **Amount**: Transaction amount (always positive)
+  - **Created At**: When entry was recorded in system
+  - **Effective At**: Accounting date for the transaction
+  - **Created By**: User who initiated the transaction
+  - **Branch**: Branch where transaction occurred
+  - **Description**: Human-readable transaction description
+  - **Extra**: JSON field for additional metadata
+  - **Deleted**: Soft delete flag for reversal/correction
+</Accordion>
+
+### Automated Posting Examples
+
+<Tabs>
+  <Tab title="Loan Disbursement">
+    **When a loan is disbursed:**
+    
+    ```
+    Debit:  Loan Portfolio - Principal Outstanding    $10,000
+    Credit: Cash Account                              $10,000
+    ```
+    
+    If entry fees are charged:
+    ```
+    Debit:  Cash Account                              $9,900
+    Debit:  Fee Income                                $100
+    Credit: Loan Portfolio - Principal Outstanding    $10,000
+    ```
+  </Tab>
+  
+  <Tab title="Loan Repayment">
+    **When borrower makes payment:**
+    
+    Payment: $550 (Principal: $500, Interest: $50)
+    
+    ```
+    Debit:  Cash Account                              $550
+    Credit: Loan Portfolio - Principal Outstanding    $500
+    Credit: Interest Income                           $50
+    ```
+  </Tab>
+  
+  <Tab title="Savings Deposit">
+    **When client deposits to savings:**
+    
+    ```
+    Debit:  Cash Account                              $1,000
+    Credit: Savings Accounts (Liability)              $1,000
+    ```
+  </Tab>
+  
+  <Tab title="Interest Accrual">
+    **Daily interest accrual on savings:**
+    
+    ```
+    Debit:  Interest Expense - Savings                $5.00
+    Credit: Interest Payable                          $5.00
+    ```
+    
+    **When interest is posted/capitalized:**
+    ```
+    Debit:  Interest Payable                          $150.00
+    Credit: Savings Accounts (Liability)              $150.00
+    ```
+  </Tab>
+  
+  <Tab title="Loan Provisioning">
+    **When provision is required:**
+    
+    ```
+    Debit:  Loan Loss Provision Expense               $500
+    Credit: Loan Loss Provision (Contra-Asset)        $500
+    ```
+  </Tab>
+</Tabs>
+
+## Branch Accounting
+
+### Branch-Specific Accounts
+
+```java
+@ManyToOne
+@JoinColumn(name = "branch_id")
+private Branch branch;
+```
+
+- **Branch-specific accounts**: Linked to a specific branch
+- **Organization-wide accounts**: `branch_id` is null
+
+This enables:
+- Branch-level P&L statements
+- Branch balance sheets
+- Inter-branch transfers
+- Consolidated reporting
+
+### Branch Consolidation
+
+Roll-up accounts without branch assignment aggregate across all branches for consolidated financial reporting.
+
+## Multi-Currency Support
+
+```java
+@ManyToOne
+@JoinColumn(name = "currency_id")
+private Currency currency;
+```
+
+**Currency Features:**
+- Each account has a base currency
+- Exchange rates tracked for conversions
+- Gain/loss accounts for FX differences
+- Multi-currency reporting
+
+## Account Balances
+
+Balances are calculated from accounting entries, not stored:
+
+```sql
+SELECT 
+  account_id,
+  SUM(CASE WHEN debit_account_id = account_id THEN amount ELSE 0 END) - 
+  SUM(CASE WHEN credit_account_id = account_id THEN amount ELSE 0 END) as balance
+FROM accounting_entries
+WHERE effective_at <= '2024-12-31'
+GROUP BY account_id
+```
+
+<Note>
+  Balances are computed on-demand to ensure accuracy and enable point-in-time reporting for any historical date.
+</Note>
+
+## Date Tracking
+
+### Created At vs Effective At
+
+```java
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+
+@Column(name = "effective_at")
+private LocalDateTime effectiveAt;
+```
+
+- **Created At**: System timestamp when entry was recorded
+- **Effective At**: Accounting date for financial reporting
+
+This separation allows:
+- Back-dated entries (with proper authorization)
+- Distinction between transaction date and posting date
+- Accurate period-end reporting
+
+## Audit Trail
+
+### Entry Tracking
+
+Every accounting entry records:
+
+```java
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "created_by_id")
+private User createdBy;
+
+@Column(name = "description", nullable = false)
+private String description;
+
+@Type(type = "ExtraJsonType")
+@Column(name = "extra", columnDefinition = "jsonb")
+private ExtraJson extra;
+```
+
+**Audit Information:**
+- Who created the entry
+- When it was created
+- Transaction description
+- Source transaction reference (in `extra` JSON)
+- Branch context
+
+### Soft Deletes
+
+```java
+@Column(name = "deleted")
+private Boolean deleted = false;
+```
+
+Entries are never permanently deleted, only marked as deleted for:
+- Complete audit trail
+- Regulatory compliance
+- Error investigation
+- Reversal tracking
+
+## Validation and Controls
+
+### Balance Validation
+
+```java
+@Column(name = "validate_off")
+private Boolean validateOff;
+```
+
+- **validate_off = false**: Account must maintain proper balance (no negative balances for debit accounts)
+- **validate_off = true**: Allows overdrafts or negative balances
+
+### Account Locking
+
+```java
+@Column(name = "locked", nullable = false)
+private Boolean locked;
+```
+
+Locked accounts reject all transaction attempts, used for:
+- Period-end close
+- Closed accounts
+- Suspended accounts during investigation
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Chart of Accounts Design" icon="diagram-project">
+    - Use consistent numbering scheme
+    - Plan for future account additions
+    - Limit hierarchy depth (3-4 levels max)
+    - Document account purposes clearly
+  </Card>
+  
+  <Card title="Entry Management" icon="pen-to-square">
+    - Never delete entries, use reversals
+    - Include descriptive transaction descriptions
+    - Verify debit = credit before posting
+    - Regular reconciliation of key accounts
+  </Card>
+  
+  <Card title="Security" icon="lock">
+    - Restrict manual entry permissions
+    - Require approval for back-dated entries
+    - Lock accounts after period close
+    - Regular audit of accounting entries
+  </Card>
+  
+  <Card title="Performance" icon="bolt">
+    - Index frequently queried accounts
+    - Archive old entries periodically
+    - Use materialized views for balances
+    - Optimize balance calculation queries
+  </Card>
+</CardGroup>

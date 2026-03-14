@@ -1,0 +1,487 @@
+---
+title: Loans Module
+description: Comprehensive loan management system with flexible products, schedules, and repayment processing
+---
+
+The `opencbs-loans` module provides complete loan lifecycle management including loan applications, disbursements, repayments, rescheduling, and credit committee workflows.
+
+## Overview
+
+The loans module extends the core module to provide specialized functionality for managing all types of loan products.
+
+<CardGroup cols={2}>
+  <Card title="Loan Products" icon="box">
+    Flexible product configuration with custom rules and fees
+  </Card>
+  <Card title="Loan Applications" icon="file-pen">
+    Complete application workflow with approval chains
+  </Card>
+  <Card title="Repayment Engine" icon="money-bill-wave">
+    Multiple repayment types and split algorithms
+  </Card>
+  <Card title="Schedule Management" icon="calendar-days">
+    Dynamic schedule generation and rescheduling
+  </Card>
+</CardGroup>
+
+## Loan Domain Model
+
+The loan domain model represents the complete lifecycle of a loan from application to closure.
+
+### Loan Entity
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/domain/Loan.java:31`
+
+```java
+@Entity
+@Table(name = "loans")
+public class Loan extends LoanBaseEntity {
+    private LoanStatus status;
+    private LoanApplication loanApplication;
+    private Profile profile;
+    private List<LoanAccount> loanAccountList;
+    private List<LoanPenaltyAccount> loanPenaltyAccountList;
+    private Boolean scheduleManualEdited;
+}
+```
+
+### Key Domain Classes
+
+<Tabs>
+  <Tab title="Core Entities">
+    **Loan** - Main loan entity
+    
+    **LoanApplication** - Loan application with approval workflow
+    
+    **LoanInstallment** - Individual installment in loan schedule
+    
+    **LoanProduct** - Product template defining loan terms
+    
+    **LoanAccount** - Accounting integration for loan
+  </Tab>
+  <Tab title="Supporting Entities">
+    **Guarantor** - Loan guarantor information
+    
+    **Collateral** - Loan collateral details
+    
+    **LoanEvent** - Loan lifecycle events
+    
+    **LoanPenaltyAccount** - Penalty tracking
+    
+    **LoanSpecificProvision** - Loan loss provisions
+  </Tab>
+  <Tab title="Enumerations">
+    **LoanStatus** - Loan lifecycle states
+    ```
+    PENDING, APPROVED, ACTIVE, 
+    CLOSED, WRITTEN_OFF, RESCHEDULED
+    ```
+    
+    **RepaymentType** - Types of repayments
+    ```
+    NORMAL_REPAYMENT, 
+    EARLY_TOTAL_REPAYMENT,
+    EARLY_PARTIAL_REPAYMENT
+    ```
+  </Tab>
+</Tabs>
+
+## Loan Products
+
+Loan products define templates with configurable parameters for different loan types.
+
+### Product Configuration
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/domain/products/LoanProduct.java`
+
+<Accordion title="Product Parameters">
+  **Amount Ranges**
+  - Minimum loan amount
+  - Maximum loan amount
+  - Default loan amount
+  
+  **Interest Configuration**
+  - Interest rate range (min/max)
+  - Interest calculation method
+  - Accrual frequency
+  
+  **Term Settings**
+  - Minimum term
+  - Maximum term
+  - Repayment frequency
+  - Grace period options
+  
+  **Fees & Penalties**
+  - Origination fees
+  - Late payment penalties
+  - Early repayment fees
+  - Other custom fees
+  
+  **Accounting Rules**
+  - Account mappings for principal
+  - Interest income accounts
+  - Fee income accounts
+  - Penalty accounts
+</Accordion>
+
+### Product Validator
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/validators/LoanProductValidator.java`
+
+Validates product configuration including:
+- Range consistency checks
+- Accounting rule completeness
+- Fee configuration validity
+
+## Loan Application Workflow
+
+The loan application process supports multi-stage approval workflows.
+
+### Application Process
+
+```
+Draft → Submitted → Under Review → Approved/Rejected → Disbursed
+```
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/domain/LoanApplication.java`
+
+<CardGroup cols={2}>
+  <Card title="Application Data">
+    - Borrower information
+    - Loan amount and term
+    - Purpose and collateral
+    - Custom field values
+  </Card>
+  <Card title="Approval Workflow">
+    - Credit committee review
+    - Multi-level approvals
+    - Voting mechanism
+    - Approval conditions
+  </Card>
+</CardGroup>
+
+### Credit Committee
+
+Supports structured credit approval processes with voting.
+
+**Key Components:**
+- `CreditCommittee` - Committee definition
+- `CreditCommitteeVote` - Individual votes
+- `CreditCommitteeAmountRange` - Approval authority limits
+
+**Validators:**
+- `CreditCommitteeAmountRangeValidator`
+- `CreditCommitteeVoteStatusChangeDtoValidator`
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/domain/creditCommittee/`
+
+## Loan Services
+
+The loans module provides comprehensive services for loan operations.
+
+### Core Loan Services
+
+<Tabs>
+  <Tab title="Application Services">
+    **LoanApplicationService**
+    - Create and update applications
+    - Submit for approval
+    - Approval workflow management
+    
+    **LoanService**
+    - Loan creation from application
+    - Status transitions
+    - Loan queries and reporting
+  </Tab>
+  <Tab title="Repayment Services">
+    **LoanRepaymentService** - Interface for repayment strategies
+    
+    **Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/services/repayment/LoanRepaymentService.java:11`
+    
+    ```java
+    public interface LoanRepaymentService<T extends RepaymentSplit> {
+        T split(Long loanId, T repaymentSplit);
+        List<LoanInstallment> preview(Loan loan, T repaymentSplit);
+        RepaymentResult repay(Loan loan, T repaymentSplit);
+        boolean isNeedClose();
+    }
+    ```
+    
+    **Implementations:**
+    - `LoanNormalRepaymentServiceImpl` - Standard repayments
+    - `EarlyTotalRepaymentService` - Full early payoff
+  </Tab>
+  <Tab title="Schedule Services">
+    **LoanRescheduleService** - Loan rescheduling operations
+    
+    **Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/services/loanreschedule/LoanRescheduleService.java`
+    
+    **Schedule Generation** - Uses core schedule generators
+    - Inherits from core schedule generator framework
+    - Applies loan-specific business rules
+  </Tab>
+</Tabs>
+
+### Repayment Processing
+
+The repayment engine supports flexible payment allocation strategies.
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/services/repayment/`
+
+<Accordion title="Repayment Split Algorithm">
+  The repayment split algorithm determines how payments are allocated:
+  
+  1. **Calculate Outstanding** - Determine all amounts due
+  2. **Apply Payment Order** - Allocate by priority:
+     - Penalties
+     - Late fees
+     - Interest
+     - Principal
+  3. **Distribute Across Installments** - Allocate to oldest first
+  4. **Handle Overpayment** - Store as advance or unallocated
+  5. **Generate Accounting Entries** - Create double-entry records
+</Accordion>
+
+### Repayment Types
+
+<CardGroup cols={3}>
+  <Card title="Normal Repayment">
+    Standard installment payment following the schedule
+  </Card>
+  <Card title="Early Total">
+    Complete payoff before maturity with interest adjustment
+  </Card>
+  <Card title="Early Partial">
+    Extra principal payment reducing future interest
+  </Card>
+  <Card title="Batch Repayment">
+    Process multiple repayments in bulk
+  </Card>
+  <Card title="Auto Repayment">
+    Automated repayment from linked accounts
+  </Card>
+  <Card title="SEPA Integration">
+    European direct debit integration
+  </Card>
+</CardGroup>
+
+## Schedule Generation
+
+Loans use the core schedule generator framework with loan-specific extensions.
+
+### Schedule Parameters
+
+**Location:** `server/opencbs-core/src/main/java/com/opencbs/core/domain/schedule/ScheduleParams.java`
+
+```java
+public class ScheduleParams {
+    private BigDecimal amount;
+    private BigDecimal interestRate;
+    private LocalDate disbursementDate;
+    private LocalDate maturityDate;
+    private int maturity;
+    private LocalDate preferredRepaymentDate;
+    private int gracePeriod;
+    private ScheduleGeneratorTypes scheduleType;
+}
+```
+
+### Schedule Customization
+
+<Tabs>
+  <Tab title="Manual Editing">
+    Loans support manual schedule editing for custom repayment plans.
+    
+    **Tracking:**
+    - `scheduleManualEdited` flag
+    - `scheduleManualEditedAt` timestamp
+    - `scheduleManualEditedBy` user reference
+    
+    **Location:** Loan.java:54-62
+  </Tab>
+  <Tab title="Rescheduling">
+    **LoanRescheduleService** handles loan modifications:
+    - Extend maturity
+    - Change interest rate
+    - Adjust installment amounts
+    - Skip payments (grace period)
+    
+    **Worker:** `LoanRescheduleWorker`
+    
+    **Validator:** `LoanRescheduleValidator`
+  </Tab>
+</Tabs>
+
+## Day Closure Processing
+
+Loans participate in the day-end closure process for accruals and provisions.
+
+### Day Closure Processors
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/services/loancloseday/`
+
+<CardGroup cols={2}>
+  <Card title="Interest Accrual">
+    **LoanInterestAccrualServerDayClosureProcessor**
+    
+    Calculates and books daily interest accrual
+  </Card>
+  <Card title="Penalty Accrual">
+    **LoanPenaltyAccrualProcessor**
+    
+    Applies late payment penalties
+  </Card>
+  <Card title="Provisioning">
+    **LoanProvisionDayClosureProcessor**
+    
+    Calculates loan loss provisions based on aging
+  </Card>
+  <Card title="Auto Repayment">
+    **LoanAutoRepaymentProcessor**
+    
+    Processes scheduled automatic repayments
+  </Card>
+</CardGroup>
+
+### Provision Calculation
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/services/loancloseday/provisions/`
+
+<Accordion title="Provision Types">
+  **ProvisionOlb** - Provisions based on outstanding loan balance
+  
+  **ProvisionInterest** - Provisions for accrued interest
+  
+  **ProvisionPenalty** - Provisions for unpaid penalties
+  
+  **Base:** `BaseProvisionProcessor` - Common provisioning logic
+</Accordion>
+
+## Collateral Management
+
+Supports tracking of loan collateral and guarantors.
+
+### Collateral Types
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/domain/Collateral.java`
+
+- Property
+- Vehicle
+- Equipment
+- Securities
+- Cash deposits
+- Custom types with custom fields
+
+**Type Configuration:** `TypeOfCollateral` entity with custom field support
+
+**Validator:** `CollateralDtoValidator`
+
+### Guarantor Management
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/domain/Guarantor.java`
+
+- Link guarantors to loans
+- Track guarantee amounts
+- Support multiple guarantors per loan
+
+**Validator:** `GuarantorDtoValidator`
+
+## SEPA Integration
+
+Supports European SEPA direct debit for loan repayments.
+
+### SEPA Services
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/services/sepaintegration/`
+
+<Tabs>
+  <Tab title="Export">
+    **SepaDocumentService**
+    
+    Generate SEPA XML files for direct debit collection
+    
+    **Format:** pain.008.001.02 (Direct Debit)
+  </Tab>
+  <Tab title="Import">
+    **SepaIntegrationService**
+    
+    Process SEPA return files with payment status
+    
+    **Format:** pain.002.001.03 (Payment Status Report)
+  </Tab>
+</Tabs>
+
+### SEPA XML Model
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/xml/sepa/`
+
+Complete Java model for SEPA XML schemas:
+- `SepaExportDocument` - Direct debit initiation
+- `SepaImportDocument` - Payment status report
+- Supporting value objects (Debtor, Creditor, etc.)
+
+## Loan Analytics
+
+Provides loan portfolio analytics and reporting.
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/analytics/loan/`
+
+- Portfolio quality metrics
+- Aging analysis
+- Delinquency reporting
+- Loan officer performance
+
+## Workers and Background Tasks
+
+### Key Workers
+
+**Location:** `server/opencbs-loans/src/main/java/com/opencbs/loans/workers/`
+
+<CardGroup cols={2}>
+  <Card title="LoanRepaymentWorker">
+    Orchestrates repayment processing workflow
+  </Card>
+  <Card title="LoanRescheduleWorker">
+    Handles loan rescheduling operations
+  </Card>
+  <Card title="LoanRollBackWorker">
+    Reverses loan transactions
+  </Card>
+  <Card title="LoanBatchRepaymentWorker">
+    Processes batch repayments
+  </Card>
+</CardGroup>
+
+## Module Structure
+
+```
+opencbs-loans/
+├── domain/                    # Loan entities
+│   ├── products/             # Loan products
+│   ├── schedules/            # Schedule entities
+│   ├── creditCommittee/      # Credit approval
+│   ├── enums/                # Loan enumerations
+│   └── customfields/         # Custom field support
+├── services/                  # Business services
+│   ├── repayment/            # Repayment engine
+│   ├── loanreschedule/       # Rescheduling
+│   ├── loancloseday/         # Day closure
+│   └── sepaintegration/      # SEPA processing
+├── validators/                # Validation logic
+├── workers/                   # Background tasks
+├── controllers/               # REST API
+└── xml/sepa/                 # SEPA XML model
+```
+
+## Key Dependencies
+
+- **opencbs-core** - Core entities and services
+- Spring Boot - Application framework
+- Hibernate - ORM
+- JAXB - XML processing for SEPA
+
+## Related Documentation
+
+- [Core Module](/development/modules/core) - Foundation entities and services
+- [Accounting Module](/development/modules/accounting) - Accounting integration
+- [Savings Module](/development/modules/savings) - Savings account management

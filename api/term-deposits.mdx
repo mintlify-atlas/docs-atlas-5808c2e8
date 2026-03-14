@@ -1,0 +1,308 @@
+---
+title: 'Term Deposits API'
+description: 'REST API endpoints for managing term deposit accounts'
+---
+
+## Overview
+
+The Term Deposits API allows you to create and manage term deposit accounts. All endpoints are located under `/api/term-deposits`.
+
+## Create Term Deposit
+
+<ParamField path="POST /api/term-deposits" type="endpoint">
+  Creates a new term deposit account.
+</ParamField>
+
+### Request Body
+
+<ParamField body="profileId" type="long" required>
+  The ID of the profile associated with this term deposit
+</ParamField>
+
+<ParamField body="productId" type="long" required>
+  The ID of the term deposit product to use
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  The principal amount of the term deposit
+</ParamField>
+
+<ParamField body="interestRate" type="decimal" required>
+  The interest rate for the term deposit
+</ParamField>
+
+<ParamField body="maturityDate" type="date" required>
+  The maturity date of the term deposit
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  The unique identifier of the created term deposit
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the term deposit (e.g., PENDING, OPEN, CLOSED)
+</ResponseField>
+
+<ResponseField name="principal" type="decimal">
+  The principal amount
+</ResponseField>
+
+<ResponseField name="interestRate" type="decimal">
+  The interest rate
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/term-deposits \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "profileId": 123,
+    "productId": 456,
+    "amount": 10000.00,
+    "interestRate": 5.5,
+    "maturityDate": "2027-03-14"
+  }'
+```
+
+```json Response
+{
+  "id": 789,
+  "profileId": 123,
+  "productId": 456,
+  "status": "PENDING",
+  "principal": 10000.00,
+  "interestRate": 5.5,
+  "maturityDate": "2027-03-14"
+}
+```
+</CodeGroup>
+
+## Update Term Deposit
+
+<ParamField path="PUT /api/term-deposits/{id}" type="endpoint">
+  Updates an existing term deposit account.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the term deposit to update
+</ParamField>
+
+### Request Body
+
+Same as create endpoint.
+
+## Open Term Deposit
+
+<ParamField path="POST /api/term-deposits/{id}/open" type="endpoint">
+  Opens a term deposit account.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the term deposit to open
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="initialAmount" type="decimal" required>
+  The initial deposit amount
+</ParamField>
+
+<ParamField query="openDate" type="date" required>
+  The date to open the account (ISO date-time format)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.opencbs.com/api/term-deposits/789/open?initialAmount=10000.00&openDate=2026-03-14" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "OPEN",
+  "principal": 10000.00,
+  "openDate": "2026-03-14T10:00:00"
+}
+```
+</CodeGroup>
+
+## Close Term Deposit
+
+<ParamField path="POST /api/term-deposits/{id}/close" type="endpoint">
+  Closes the term deposit account.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the term deposit to close
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="closeDate" type="date" required>
+  The date to close the account (ISO date format)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.opencbs.com/api/term-deposits/789/close?closeDate=2027-03-14" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "CLOSED",
+  "closeDate": "2027-03-14"
+}
+```
+</CodeGroup>
+
+## Lock/Unlock Term Deposit
+
+<ParamField path="POST /api/term-deposits/{termDepositId}/lock-unlock" type="endpoint">
+  Toggles the lock status of the term deposit.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="termDepositId" type="long" required>
+  The ID of the term deposit
+</ParamField>
+
+## Get All Term Deposits
+
+<ParamField path="GET /api/term-deposits" type="endpoint">
+  Retrieves all term deposits with optional search.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Optional search string to filter results
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (0-based)
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.opencbs.com/api/term-deposits?page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "content": [
+    {
+      "id": 789,
+      "profileId": 123,
+      "status": "OPEN",
+      "principal": 10000.00,
+      "interestRate": 5.5
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1,
+  "number": 0,
+  "size": 20
+}
+```
+</CodeGroup>
+
+## Get Term Deposit by ID
+
+<ParamField path="GET /api/term-deposits/{id}" type="endpoint">
+  Retrieves a specific term deposit by ID.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the term deposit
+</ParamField>
+
+## Get Term Deposits by Profile
+
+<ParamField path="GET /api/term-deposits/by-profile/{profileId}" type="endpoint">
+  Retrieves all term deposits for a specific profile.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="profileId" type="long" required>
+  The ID of the profile
+</ParamField>
+
+## Get Accounting Entries
+
+<ParamField path="GET /api/term-deposits/{termDepositId}/entries" type="endpoint">
+  Retrieves accounting entries for a term deposit.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="termDepositId" type="long" required>
+  The ID of the term deposit
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of accounting entries
+</ResponseField>
+
+<ResponseField name="content[].id" type="long">
+  Entry ID
+</ResponseField>
+
+<ResponseField name="content[].amount" type="decimal">
+  Transaction amount
+</ResponseField>
+
+<ResponseField name="content[].effectiveAt" type="datetime">
+  When the entry was effective
+</ResponseField>
+
+## Actualize Term Deposit
+
+<ParamField path="POST /api/term-deposits/actualize/{termDepositId}" type="endpoint">
+  Actualizes the term deposit to a specific date (processes interest accrual).
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="termDepositId" type="long" required>
+  The ID of the term deposit to actualize
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="date" type="date" required>
+  The date to actualize to (ISO date format)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.opencbs.com/api/term-deposits/actualize/789?date=2026-04-14" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+"Actualize term deposit started"
+```
+</CodeGroup>

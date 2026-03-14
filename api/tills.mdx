@@ -1,0 +1,594 @@
+---
+title: 'Tills'
+description: 'Manage till operations for teller transactions'
+---
+
+## Overview
+
+The Tills API provides endpoints for managing tills (cash drawers), including opening/closing operations, deposits, withdrawals, and transfers between tills and vaults.
+
+## Get All Tills
+
+<CodeGroup>
+```http GET /api/tills
+GET /api/tills?page={page}&size={size}&search={search}
+```
+</CodeGroup>
+
+Retrieve all tills with pagination and optional search.
+
+### Query Parameters
+
+<ParamField query="page" type="integer">
+  Page number for pagination (0-based)
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search term to filter tills
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of till objects
+  <ResponseField name="id" type="long">
+    Till ID
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Till name
+  </ResponseField>
+  <ResponseField name="branchId" type="long">
+    Branch ID
+  </ResponseField>
+  <ResponseField name="vaultId" type="long">
+    Associated vault ID
+  </ResponseField>
+  <ResponseField name="isOpened" type="boolean">
+    Whether the till is currently open
+  </ResponseField>
+  <ResponseField name="tellerId" type="long">
+    ID of the teller currently using the till
+  </ResponseField>
+</ResponseField>
+
+## Get Till by ID
+
+<CodeGroup>
+```http GET /api/tills/{id}
+GET /api/tills/{id}
+```
+</CodeGroup>
+
+Retrieve detailed information for a specific till.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Till ID
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Till name
+</ResponseField>
+
+<ResponseField name="branchId" type="long">
+  Branch ID
+</ResponseField>
+
+<ResponseField name="vaultId" type="long">
+  Associated vault ID
+</ResponseField>
+
+<ResponseField name="accounts" type="array">
+  Array of accounts associated with the till
+  <ResponseField name="currencyId" type="long">
+    Currency ID
+  </ResponseField>
+  <ResponseField name="accountId" type="long">
+    Account ID
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="isOpened" type="boolean">
+  Whether the till is currently open
+</ResponseField>
+
+<ResponseField name="tellerId" type="long">
+  ID of the teller currently using the till
+</ResponseField>
+
+## Create Till
+
+<CodeGroup>
+```http POST /api/tills
+POST /api/tills
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "name": "Teller 1 Cash Drawer",
+  "branchId": 1,
+  "vaultId": 1,
+  "accounts": [
+    {
+      "currencyId": 1
+    }
+  ]
+}
+```
+</CodeGroup>
+
+Create a new till.
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Till name
+</ParamField>
+
+<ParamField body="branchId" type="long" required>
+  Branch ID where the till is located
+</ParamField>
+
+<ParamField body="vaultId" type="long" required>
+  ID of the vault associated with this till
+</ParamField>
+
+<ParamField body="accounts" type="array" required>
+  Array of account configurations
+  <ParamField body="currencyId" type="long" required>
+    Currency ID for each account
+  </ParamField>
+</ParamField>
+
+### Response
+
+Returns the created till object with the same structure as Get Till by ID.
+
+## Update Till
+
+<CodeGroup>
+```http PUT /api/tills/{id}
+PUT /api/tills/{id}
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "name": "Updated Till Name",
+  "branchId": 1,
+  "vaultId": 1,
+  "accounts": [
+    {
+      "currencyId": 1
+    }
+  ]
+}
+```
+</CodeGroup>
+
+Update an existing till.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Request Body
+
+Same as Create Till request body.
+
+### Response
+
+Returns the updated till object.
+
+## Open Till
+
+<CodeGroup>
+```http POST /api/tills/{id}/open
+POST /api/tills/{id}/open?tellerId={tellerId}
+```
+</CodeGroup>
+
+Open a till for a specific teller to begin operations.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="tellerId" type="long" required>
+  ID of the teller opening the till
+</ParamField>
+
+### Permissions
+
+Requires `OPEN_TILL` permission in the `TELLER_MANAGEMENT` module.
+
+## Close Till
+
+<CodeGroup>
+```http POST /api/tills/{id}/close
+POST /api/tills/{id}/close?tellerId={tellerId}
+```
+</CodeGroup>
+
+Close a till after teller operations are complete.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="tellerId" type="long" required>
+  ID of the teller closing the till
+</ParamField>
+
+### Permissions
+
+Requires `CLOSE_TILL` permission in the `TELLER_MANAGEMENT` module.
+
+## Transfer to Vault
+
+<CodeGroup>
+```http POST /api/tills/transfer/vault
+POST /api/tills/transfer/vault
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "tillId": 1,
+  "vaultId": 1,
+  "amount": 5000.00,
+  "currencyId": 1,
+  "description": "End of day transfer to vault"
+}
+```
+</CodeGroup>
+
+Transfer funds from a till to a vault.
+
+### Request Body
+
+<ParamField body="tillId" type="long" required>
+  Source till ID
+</ParamField>
+
+<ParamField body="vaultId" type="long" required>
+  Destination vault ID
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  Transfer amount (must be positive)
+</ParamField>
+
+<ParamField body="currencyId" type="long" required>
+  Currency ID
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Transfer description
+</ParamField>
+
+### Permissions
+
+Requires `TRANSFER_TO_VAULT` permission in the `TELLER_MANAGEMENT` module.
+
+## Transfer from Vault
+
+<CodeGroup>
+```http POST /api/tills/transfer/till
+POST /api/tills/transfer/till
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "tillId": 1,
+  "vaultId": 1,
+  "amount": 3000.00,
+  "currencyId": 1,
+  "description": "Start of day transfer from vault"
+}
+```
+</CodeGroup>
+
+Transfer funds from a vault to a till.
+
+### Request Body
+
+<ParamField body="tillId" type="long" required>
+  Destination till ID
+</ParamField>
+
+<ParamField body="vaultId" type="long" required>
+  Source vault ID
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  Transfer amount (must be positive)
+</ParamField>
+
+<ParamField body="currencyId" type="long" required>
+  Currency ID
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Transfer description
+</ParamField>
+
+### Permissions
+
+Requires `TRANSFER_FROM_VAULT` permission in the `TELLER_MANAGEMENT` module.
+
+## Get Till Balance
+
+<CodeGroup>
+```http GET /api/tills/{id}/balance
+GET /api/tills/{id}/balance?datetime={datetime}
+```
+</CodeGroup>
+
+Retrieve the balance of a till at a specific date and time.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="datetime" type="datetime" required>
+  Date and time for balance inquiry (format: yyyy-MM-dd'T'HH:mm:ss)
+</ParamField>
+
+### Response
+
+<ResponseField name="balances" type="array">
+  Array of balance objects by currency
+  <ResponseField name="currencyId" type="long">
+    Currency ID
+  </ResponseField>
+  <ResponseField name="currencyName" type="string">
+    Currency name
+  </ResponseField>
+  <ResponseField name="balance" type="decimal">
+    Balance amount
+  </ResponseField>
+</ResponseField>
+
+## Withdraw from Till
+
+<CodeGroup>
+```http POST /api/tills/{id}/operations/withdraw
+POST /api/tills/{id}/operations/withdraw
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "currentAccountId": 100,
+  "amount": 500.00,
+  "description": "Cash withdrawal"
+}
+```
+</CodeGroup>
+
+Process a withdrawal from the till.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Request Body
+
+<ParamField body="currentAccountId" type="long" required>
+  Current account ID to withdraw from
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  Withdrawal amount (must be positive)
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Withdrawal description
+</ParamField>
+
+### Response
+
+<ResponseField name="operationId" type="long">
+  ID of the created operation
+</ResponseField>
+
+### Permissions
+
+Requires `WITHDRAW` permission in the `TELLER_MANAGEMENT` module.
+
+## Deposit to Till
+
+<CodeGroup>
+```http POST /api/tills/{id}/operations/deposit
+POST /api/tills/{id}/operations/deposit
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "currentAccountId": 100,
+  "amount": 1000.00,
+  "description": "Cash deposit"
+}
+```
+</CodeGroup>
+
+Process a deposit into the till.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Request Body
+
+<ParamField body="currentAccountId" type="long" required>
+  Current account ID to deposit to
+</ParamField>
+
+<ParamField body="amount" type="decimal" required>
+  Deposit amount (must be positive)
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Deposit description
+</ParamField>
+
+### Response
+
+<ResponseField name="operationId" type="long">
+  ID of the created operation
+</ResponseField>
+
+### Permissions
+
+Requires `DEPOSIT` permission in the `TELLER_MANAGEMENT` module.
+
+## Print Receipt
+
+<CodeGroup>
+```http POST /api/tills/{id}/operations/printReceipt
+POST /api/tills/{id}/operations/printReceipt
+Content-Type: application/json
+```
+
+```json Request Body
+{
+  "currentAccountId": 100,
+  "amount": 500.00,
+  "description": "Transaction receipt"
+}
+```
+</CodeGroup>
+
+Generate a receipt for a till operation.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Request Body
+
+Same as deposit/withdraw operations.
+
+### Response
+
+Returns a PDF receipt document.
+
+## Get Till Operations
+
+<CodeGroup>
+```http GET /api/tills/{id}/operations
+GET /api/tills/{id}/operations?currencyId={currencyId}&page={page}&size={size}
+```
+</CodeGroup>
+
+Retrieve all operations for a specific till.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Till ID
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="currencyId" type="long">
+  Filter operations by currency ID
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of operation objects
+  <ResponseField name="id" type="long">
+    Operation ID
+  </ResponseField>
+  <ResponseField name="type" type="string">
+    Operation type (DEPOSIT, WITHDRAW, TRANSFER)
+  </ResponseField>
+  <ResponseField name="amount" type="decimal">
+    Operation amount
+  </ResponseField>
+  <ResponseField name="currentAccountId" type="long">
+    Related current account ID
+  </ResponseField>
+  <ResponseField name="description" type="string">
+    Operation description
+  </ResponseField>
+  <ResponseField name="createdAt" type="datetime">
+    Operation timestamp
+  </ResponseField>
+  <ResponseField name="createdBy" type="string">
+    User who performed the operation
+  </ResponseField>
+</ResponseField>
+
+## Till Lookup
+
+<CodeGroup>
+```http GET /api/tills/lookup
+GET /api/tills/lookup?search={search}&page={page}&size={size}
+```
+</CodeGroup>
+
+Search for tills (typically used for dropdowns and autocomplete).
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Search term to filter tills
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+### Response
+
+Returns a paginated list of tills with basic information.

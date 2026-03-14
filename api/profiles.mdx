@@ -1,0 +1,275 @@
+---
+title: "Profiles API"
+description: "Manage profiles across the OpenCBS system"
+---
+
+## Overview
+
+The Profiles API provides endpoints to manage all profile types (people, companies, groups) in OpenCBS. Profiles are the core entities representing clients in the system.
+
+## Get All Profiles
+
+<CodeGroup>
+```bash GET /api/profiles
+curl -X GET "https://api.opencbs.com/api/profiles?search=John&page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve a paginated list of profiles with optional search filtering.
+
+<ParamField query="search" type="string">
+  Optional search string to filter profiles by name or other fields
+</ParamField>
+
+<ParamField query="page" type="integer" default="0">
+  Page number for pagination (zero-based)
+</ParamField>
+
+<ParamField query="size" type="integer" default="20">
+  Number of items per page
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of profile objects
+  <Expandable title="Profile Object">
+    <ResponseField name="id" type="long">
+      Unique identifier for the profile
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Profile name (person full name, company name, or group name)
+    </ResponseField>
+    <ResponseField name="type" type="string">
+      Profile type: `PERSON`, `COMPANY`, or `GROUP`
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Entity status: `LIVE`, `PENDING`, `DEAD`, etc.
+    </ResponseField>
+    <ResponseField name="branchName" type="string">
+      Name of the branch this profile belongs to
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="pageable" type="object">
+  Pagination information
+</ResponseField>
+
+<ResponseField name="totalElements" type="long">
+  Total number of profiles matching the search criteria
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer">
+  Total number of pages
+</ResponseField>
+
+---
+
+## Get Single Profile
+
+<CodeGroup>
+```bash GET /api/profiles/{profileId}/single
+curl -X GET "https://api.opencbs.com/api/profiles/123/single" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve detailed information about a specific profile.
+
+<ParamField path="profileId" type="long" required>
+  The unique identifier of the profile
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Profile identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Profile name
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Profile type
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the profile
+</ResponseField>
+
+<ResponseField name="branchName" type="string">
+  Associated branch name
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Profile not found - returned when the specified profile ID does not exist
+  ```json
+  {
+    "message": "Profile not found (ID=123)."
+  }
+  ```
+</ResponseField>
+
+---
+
+## Get Profiles with Accounts
+
+<CodeGroup>
+```bash GET /api/profiles/with-accounts
+curl -X GET "https://api.opencbs.com/api/profiles/with-accounts?search=savings&page=0&size=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve profiles along with their current account information.
+
+<ParamField query="search" type="string">
+  Optional search filter
+</ParamField>
+
+<ParamField query="page" type="integer" default="0">
+  Page number
+</ParamField>
+
+<ParamField query="size" type="integer" default="20">
+  Page size
+</ParamField>
+
+### Response
+
+Returns a paginated list of simplified profile account objects including account details and balances.
+
+---
+
+## Get Current Account ID
+
+<CodeGroup>
+```bash GET /api/profiles/current-account/{profileId}
+curl -X GET "https://api.opencbs.com/api/profiles/current-account/123" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve the current account ID associated with a profile.
+
+<ParamField path="profileId" type="long" required>
+  Profile identifier
+</ParamField>
+
+### Response
+
+<ResponseField name="accountId" type="long">
+  The current account ID, or `null` if no account exists
+</ResponseField>
+
+---
+
+## Get Profile History
+
+<CodeGroup>
+```bash GET /api/profiles/{id}/history
+curl -X GET "https://api.opencbs.com/api/profiles/123/history" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve the complete audit history of changes made to a profile.
+
+<ParamField path="id" type="long" required>
+  Profile identifier
+</ParamField>
+
+### Response
+
+<ResponseField name="history" type="array">
+  Array of history entries
+  <Expandable title="History Entry">
+    <ResponseField name="revisionId" type="long">
+      Revision identifier
+    </ResponseField>
+    <ResponseField name="timestamp" type="string">
+      When the change occurred (ISO 8601 format)
+    </ResponseField>
+    <ResponseField name="user" type="string">
+      User who made the change
+    </ResponseField>
+    <ResponseField name="action" type="string">
+      Type of action: `CREATE`, `UPDATE`, `DELETE`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Profile not found
+  ```json
+  {
+    "message": "Profile not found(ID=123)."
+  }
+  ```
+</ResponseField>
+
+---
+
+## Get Last Change Before Date
+
+<CodeGroup>
+```bash GET /api/profiles/{id}/history/last_change
+curl -X GET "https://api.opencbs.com/api/profiles/123/history/last_change?dateTime=2024-01-15T10:30:00" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve the last change made to a profile before a specific date and time.
+
+<ParamField path="id" type="long" required>
+  Profile identifier
+</ParamField>
+
+<ParamField query="dateTime" type="string" required>
+  ISO 8601 formatted date-time (e.g., `2024-01-15T10:30:00`)
+</ParamField>
+
+### Response
+
+Returns a single history entry representing the last change before the specified timestamp.
+
+<ResponseField name="revisionId" type="long">
+  Revision identifier
+</ResponseField>
+
+<ResponseField name="timestamp" type="string">
+  When the change occurred
+</ResponseField>
+
+<ResponseField name="user" type="string">
+  User who made the change
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Profile not found
+</ResponseField>
+
+---
+
+## Permissions Required
+
+Most profile endpoints require the `GET_PROFILES` permission with `ModuleType.PROFILES` access level.
+
+## Common Error Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | Bad Request - Invalid parameters |
+| 401 | Unauthorized - Missing or invalid authentication token |
+| 403 | Forbidden - User lacks required permissions |
+| 404 | Not Found - Profile does not exist |
+| 500 | Internal Server Error - Server-side error occurred |

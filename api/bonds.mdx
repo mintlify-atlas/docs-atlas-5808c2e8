@@ -1,0 +1,398 @@
+---
+title: 'Bonds API'
+description: 'REST API endpoints for managing bond instruments'
+---
+
+## Overview
+
+The Bonds API allows you to create, manage, and trade bond instruments. All endpoints are located under `/api/bonds`.
+
+## Create Bond
+
+<ParamField path="POST /api/bonds" type="endpoint">
+  Creates a new bond instrument.
+</ParamField>
+
+### Request Body
+
+<ParamField body="profileId" type="long" required>
+  The ID of the profile (issuer) associated with this bond
+</ParamField>
+
+<ParamField body="productId" type="long" required>
+  The ID of the bond product to use
+</ParamField>
+
+<ParamField body="faceValue" type="decimal" required>
+  The face value of the bond
+</ParamField>
+
+<ParamField body="couponRate" type="decimal" required>
+  The coupon rate (interest rate) of the bond
+</ParamField>
+
+<ParamField body="maturityDate" type="date" required>
+  The maturity date of the bond
+</ParamField>
+
+<ParamField body="issueDate" type="date" required>
+  The issue date of the bond
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  The unique identifier of the created bond
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the bond (e.g., IN_PROGRESS, ACTIVE, MATURED)
+</ResponseField>
+
+<ResponseField name="faceValue" type="decimal">
+  The face value of the bond
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/bonds \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "profileId": 123,
+    "productId": 456,
+    "faceValue": 100000.00,
+    "couponRate": 6.5,
+    "maturityDate": "2030-03-14",
+    "issueDate": "2026-03-14"
+  }'
+```
+
+```json Response
+{
+  "id": 789,
+  "profileId": 123,
+  "productId": 456,
+  "status": "IN_PROGRESS",
+  "faceValue": 100000.00,
+  "couponRate": 6.5,
+  "maturityDate": "2030-03-14",
+  "issueDate": "2026-03-14"
+}
+```
+</CodeGroup>
+
+## Update Bond
+
+<ParamField path="PUT /api/bonds/{id}" type="endpoint">
+  Updates an existing bond. Only possible when status is IN_PROGRESS.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the bond to update
+</ParamField>
+
+### Request Body
+
+Same as create endpoint.
+
+## Start Bond (Sell)
+
+<ParamField path="POST /api/bonds/start/{id}" type="endpoint">
+  Activates the bond for trading/selling.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the bond to start
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/bonds/start/789 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "ACTIVE",
+  "valueDate": "2026-03-14"
+}
+```
+</CodeGroup>
+
+## Preview Bond Schedule
+
+<ParamField path="POST /api/bonds/preview" type="endpoint">
+  Previews the payment schedule for a bond before creation.
+</ParamField>
+
+### Request Body
+
+Same as create endpoint.
+
+### Response
+
+<ResponseField name="rows" type="array">
+  Array of scheduled installments
+</ResponseField>
+
+<ResponseField name="rows[].number" type="integer">
+  Installment number
+</ResponseField>
+
+<ResponseField name="rows[].maturityDate" type="date">
+  Payment due date
+</ResponseField>
+
+<ResponseField name="rows[].principal" type="decimal">
+  Principal amount due
+</ResponseField>
+
+<ResponseField name="rows[].interest" type="decimal">
+  Interest amount due
+</ResponseField>
+
+## Get All Bonds
+
+<ParamField path="GET /api/bonds" type="endpoint">
+  Retrieves all bonds with optional search.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Optional search string to filter results
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (0-based)
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+## Get Bond by ID
+
+<ParamField path="GET /api/bonds/{id}" type="endpoint">
+  Retrieves a specific bond by ID.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the bond
+</ParamField>
+
+## Get Bonds by Profile
+
+<ParamField path="GET /api/bonds/by-profile/{profileId}" type="endpoint">
+  Retrieves all bonds for a specific profile (issuer).
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="profileId" type="long" required>
+  The ID of the profile
+</ParamField>
+
+## Get Bond Schedule
+
+<ParamField path="GET /api/bonds/{bondId}/schedule" type="endpoint">
+  Retrieves the payment schedule for a bond.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="bondId" type="long" required>
+  The ID of the bond
+</ParamField>
+
+## Bond Repayment
+
+<ParamField path="POST /api/bonds/{bondId}/repayment/repay" type="endpoint">
+  Processes a repayment for the bond.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="bondId" type="long" required>
+  The ID of the bond
+</ParamField>
+
+### Request Body
+
+<ParamField body="timestamp" type="datetime" required>
+  The timestamp of the repayment
+</ParamField>
+
+<ParamField body="total" type="decimal" required>
+  The total repayment amount
+</ParamField>
+
+<ParamField body="repaymentType" type="string" required>
+  Type of repayment (e.g., NORMAL_REPAYMENT, EARLY_TOTAL_REPAYMENT)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/bonds/789/repayment/repay \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timestamp": "2026-06-14T10:00:00",
+    "total": 3250.00,
+    "repaymentType": "NORMAL_REPAYMENT"
+  }'
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "ACTIVE",
+  "paidPrincipal": 0.00,
+  "paidInterest": 3250.00
+}
+```
+</CodeGroup>
+
+## Preview Repayment
+
+<ParamField path="POST /api/bonds/{bondId}/repayment/preview" type="endpoint">
+  Previews how a repayment will be split across principal and interest.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="bondId" type="long" required>
+  The ID of the bond
+</ParamField>
+
+### Request Body
+
+Same as repay endpoint.
+
+## Split Repayment
+
+<ParamField path="POST /api/bonds/{bondId}/repayment/split" type="endpoint">
+  Calculates how a repayment amount will be split.
+</ParamField>
+
+## Get Bond Events
+
+<ParamField path="GET /api/bonds/{bondId}/events" type="endpoint">
+  Retrieves all events (transactions) for a bond.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="bondId" type="long" required>
+  The ID of the bond
+</ParamField>
+
+### Response
+
+<ResponseField name="events" type="array">
+  Array of bond events
+</ResponseField>
+
+<ResponseField name="events[].id" type="long">
+  Event ID
+</ResponseField>
+
+<ResponseField name="events[].eventType" type="string">
+  Type of event (e.g., DISBURSEMENT, REPAYMENT, ACCRUAL_OF_INTEREST)
+</ResponseField>
+
+<ResponseField name="events[].amount" type="decimal">
+  Transaction amount
+</ResponseField>
+
+<ResponseField name="events[].effectiveAt" type="datetime">
+  When the event occurred
+</ResponseField>
+
+## Convert Amount
+
+<ParamField path="GET /api/bonds/convert-amount" type="endpoint">
+  Converts bond quantity to amount based on currency and date.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="quantity" type="integer" required>
+  Number of bond units
+</ParamField>
+
+<ParamField query="currency" type="long" required>
+  Currency ID
+</ParamField>
+
+<ParamField query="date" type="date" required>
+  Valuation date
+</ParamField>
+
+## Get Expire Date
+
+<ParamField path="POST /api/bonds/expire-date" type="endpoint">
+  Calculates the expiration date for a bond.
+</ParamField>
+
+## Set Value Date
+
+<ParamField path="POST /api/bonds/{bondId}/valueDate" type="endpoint">
+  Sets the value date for the bond.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="bondId" type="long" required>
+  The ID of the bond
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="date" type="date" required>
+  The value date to set
+</ParamField>
+
+## Actualize Bond
+
+<ParamField path="POST /api/bonds/actualize/{bondId}" type="endpoint">
+  Actualizes the bond to a specific date (processes accruals, maturities).
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="bondId" type="long" required>
+  The ID of the bond to actualize
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="date" type="date" required>
+  The date to actualize to (ISO date format)
+</ParamField>
+
+## Roll Back Events
+
+<ParamField path="POST /api/bonds/{bondId}/roll-back" type="endpoint">
+  Rolls back the most recent event on the bond.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="bondId" type="long" required>
+  The ID of the bond
+</ParamField>
+
+### Request Body
+
+<ParamField body="comment" type="string" required>
+  Comment explaining the reason for rollback
+</ParamField>

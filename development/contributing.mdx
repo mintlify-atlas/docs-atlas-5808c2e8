@@ -1,0 +1,408 @@
+---
+title: Contributing to OpenCBS Cloud
+description: Guidelines for contributing to the OpenCBS Cloud project
+---
+
+Thank you for your interest in contributing to OpenCBS Cloud! This guide will help you get started.
+
+## Code of Conduct
+
+OpenCBS Cloud is an open-source project committed to fostering an inclusive and welcoming community. We expect all contributors to:
+
+- Be respectful and considerate
+- Welcome newcomers and help them get started
+- Focus on constructive feedback
+- Assume good intentions
+
+## Getting Started
+
+<Steps>
+  <Step title="Fork the Repository">
+    Create your own fork of the OpenCBS Cloud repository:
+    
+    1. Navigate to the repository on GitHub
+    2. Click the "Fork" button in the top-right corner
+    3. Clone your fork locally:
+    
+    ```bash
+    git clone https://github.com/YOUR-USERNAME/opencbs-cloud.git
+    cd opencbs-cloud
+    ```
+  </Step>
+
+  <Step title="Set Up Development Environment">
+    Follow the [Local Setup guide](/development/local-setup) to configure your development environment.
+  </Step>
+
+  <Step title="Create a Feature Branch">
+    Always create a new branch for your changes:
+    
+    ```bash
+    git checkout -b feature/your-feature-name
+    # Or for bug fixes
+    git checkout -b fix/issue-description
+    ```
+    
+    <Note>
+      Use descriptive branch names that reflect the purpose of your changes.
+    </Note>
+  </Step>
+</Steps>
+
+## Development Workflow
+
+### Making Changes
+
+<Steps>
+  <Step title="Write Code">
+    Make your changes following the [code style guidelines](#code-style).
+  </Step>
+
+  <Step title="Add Tests">
+    Ensure your changes include appropriate tests:
+    
+    - **Server**: Add JUnit tests for new Java code
+    - **Client**: Add Jasmine tests for new Angular components
+    
+    See the [Testing guide](/development/testing) for details.
+  </Step>
+
+  <Step title="Run Tests Locally">
+    Verify all tests pass before committing:
+    
+    <CodeGroup>
+    ```bash Server
+    cd server
+    mvn test
+    ```
+    
+    ```bash Client
+    cd client
+    npm test -- --watch=false
+    ng lint
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Commit Changes">
+    Write clear, descriptive commit messages:
+    
+    ```bash
+    git add .
+    git commit -m "feat: add user profile export functionality"
+    ```
+    
+    Follow [conventional commits](https://www.conventionalcommits.org/) format:
+    - `feat:` New feature
+    - `fix:` Bug fix
+    - `docs:` Documentation changes
+    - `refactor:` Code refactoring
+    - `test:` Adding or updating tests
+    - `chore:` Maintenance tasks
+  </Step>
+</Steps>
+
+### Submitting Changes
+
+<Steps>
+  <Step title="Push to Your Fork">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+
+  <Step title="Create Pull Request">
+    1. Navigate to your fork on GitHub
+    2. Click "New Pull Request"
+    3. Select your feature branch
+    4. Fill out the PR template with:
+       - Description of changes
+       - Related issue numbers
+       - Testing performed
+       - Screenshots (if UI changes)
+  </Step>
+
+  <Step title="Address Review Feedback">
+    Respond to code review comments:
+    
+    ```bash
+    # Make requested changes
+    git add .
+    git commit -m "refactor: address review feedback"
+    git push origin feature/your-feature-name
+    ```
+    
+    <Note>
+      The pull request will automatically update when you push new commits.
+    </Note>
+  </Step>
+</Steps>
+
+## Code Style
+
+### Java Code Style
+
+<Steps>
+  <Step title="Follow Java Conventions">
+    - Use camelCase for variables and methods
+    - Use PascalCase for class names
+    - Indent with 4 spaces
+    - Keep lines under 120 characters
+  </Step>
+
+  <Step title="Use Lombok Annotations">
+    Reduce boilerplate with Lombok:
+    
+    ```java
+    @Data
+    @Entity
+    @Table(name = "users")
+    public class User {
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+        
+        private String username;
+        private String email;
+    }
+    ```
+  </Step>
+
+  <Step title="Add JavaDoc for Public APIs">
+    ```java
+    /**
+     * Calculates the number of days between two dates using 30/360 convention.
+     *
+     * @param start the start date
+     * @param end the end date
+     * @return number of days between dates
+     */
+    public static Long daysBetweenAs_30_360(LocalDate start, LocalDate end) {
+        // Implementation
+    }
+    ```
+  </Step>
+</Steps>
+
+### TypeScript/Angular Code Style
+
+<Steps>
+  <Step title="Follow Angular Style Guide">
+    Adhere to the [official Angular Style Guide](https://angular.io/guide/styleguide):
+    
+    - Use camelCase for variables and functions
+    - Use PascalCase for classes
+    - Prefix services with appropriate context
+    - Use kebab-case for file names
+  </Step>
+
+  <Step title="Component Structure">
+    ```typescript
+    import { Component, OnInit } from '@angular/core';
+    
+    @Component({
+      selector: 'app-user-profile',
+      templateUrl: './user-profile.component.html',
+      styleUrls: ['./user-profile.component.css']
+    })
+    export class UserProfileComponent implements OnInit {
+      
+      constructor(private userService: UserService) { }
+      
+      ngOnInit(): void {
+        // Initialization logic
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Use TypeScript Features">
+    - Enable strict mode
+    - Use interfaces for data models
+    - Avoid `any` type when possible
+    - Use const for immutable values
+  </Step>
+</Steps>
+
+### Code Formatting
+
+Use automated formatters:
+
+<CodeGroup>
+```bash Java (Maven)
+# Format code with Spotless or similar plugin
+mvn spotless:apply
+```
+
+```bash TypeScript (Prettier)
+# Format Angular code
+npx prettier --write "src/**/*.{ts,html,css}"
+```
+</CodeGroup>
+
+## Pull Request Guidelines
+
+### PR Checklist
+
+Before submitting a pull request, ensure:
+
+- [ ] Code follows project style guidelines
+- [ ] All tests pass locally
+- [ ] New tests cover your changes
+- [ ] Documentation is updated (if applicable)
+- [ ] Commit messages follow conventional commits
+- [ ] PR description clearly explains the changes
+- [ ] Related issues are linked
+- [ ] No merge conflicts with main branch
+
+### PR Template
+
+```markdown
+## Description
+Brief description of changes made.
+
+## Related Issue
+Fixes #123
+
+## Type of Change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Testing
+Describe how you tested these changes.
+
+## Screenshots
+(If applicable)
+
+## Checklist
+- [ ] Tests pass
+- [ ] Code reviewed
+- [ ] Documentation updated
+```
+
+## Issue Guidelines
+
+### Reporting Bugs
+
+When reporting bugs, include:
+
+<Steps>
+  <Step title="Clear Title">
+    Use a descriptive title: "Loan calculation incorrect for 30/360 day count"
+  </Step>
+
+  <Step title="Environment Details">
+    - OpenCBS version
+    - Database version (PostgreSQL)
+    - Browser (for client issues)
+    - Operating system
+  </Step>
+
+  <Step title="Steps to Reproduce">
+    ```markdown
+    1. Navigate to Loans > Create New Loan
+    2. Select 30/360 day count convention
+    3. Enter loan amount: $10,000
+    4. Click Calculate Schedule
+    5. Observe incorrect interest calculation
+    ```
+  </Step>
+
+  <Step title="Expected vs Actual Behavior">
+    - **Expected**: Interest calculated using 30/360 convention
+    - **Actual**: Interest calculated using actual/365 convention
+  </Step>
+
+  <Step title="Additional Context">
+    - Logs or error messages
+    - Screenshots
+    - Related issues
+  </Step>
+</Steps>
+
+### Requesting Features
+
+For feature requests:
+
+1. Check if the feature already exists or is planned
+2. Describe the problem you're trying to solve
+3. Propose a solution
+4. Explain why this would benefit other users
+
+## Documentation
+
+Improving documentation is a valuable contribution:
+
+- Fix typos or unclear explanations
+- Add examples and code snippets
+- Update outdated information
+- Translate documentation to other languages
+
+<Note>
+  Documentation changes follow the same PR process as code changes.
+</Note>
+
+## License
+
+By contributing to OpenCBS Cloud, you agree that your contributions will be licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
+
+Key points:
+
+- OpenCBS Cloud is free software
+- You can redistribute and modify it
+- Modified versions must also be GPL-3.0 licensed
+- No warranty is provided
+- Source code must remain available
+
+Read the full license in the [LICENSE](https://github.com/opencbs/opencbs-cloud/blob/master/LICENSE) file.
+
+<Note>
+  The GPL-3.0 license ensures that OpenCBS Cloud remains free and open-source software for all users.
+</Note>
+
+## Community
+
+### Getting Help
+
+If you need help:
+
+- Check existing documentation
+- Search closed issues
+- Ask in GitHub Discussions
+- Join the community chat (if available)
+
+### Staying Updated
+
+- Watch the repository for updates
+- Subscribe to release notifications
+- Follow the project roadmap
+- Participate in community discussions
+
+## Recognition
+
+All contributors are recognized:
+
+- Listed in the project's contributors page
+- Mentioned in release notes (for significant contributions)
+- Acknowledged in the community
+
+Thank you for contributing to OpenCBS Cloud and helping make core banking accessible to everyone!
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Local Setup" icon="laptop-code" href="/development/local-setup">
+    Set up your development environment
+  </Card>
+  <Card title="Testing" icon="flask" href="/development/testing">
+    Learn about testing practices
+  </Card>
+  <Card title="Building" icon="hammer" href="/development/building">
+    Build the project locally
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture-overview">
+    Understand the system architecture
+  </Card>
+</CardGroup>

@@ -1,0 +1,275 @@
+---
+title: Loan Origination
+description: Step-by-step guide to creating and processing loan applications in OpenCBS Cloud
+---
+
+Loan origination is the process of creating, reviewing, and approving loan applications in OpenCBS Cloud. This guide covers the complete workflow from application creation to disbursement.
+
+## Prerequisites
+
+Before creating a loan application, ensure:
+
+- A client profile exists in the system
+- Loan products are configured and active
+- You have appropriate permissions (CREATE_LOAN_APPLICATION)
+
+## Creating a Loan Application
+
+<Steps>
+  <Step title="Select the Client">
+    Navigate to the client's profile page:
+    - Search for the client in the **Profiles** section
+    - Open the client's profile details
+    - Click on the **Loan Applications** tab
+  </Step>
+
+  <Step title="Start New Loan Application">
+    Click **Create Loan Application** and select:
+    - The loan product (product type determines terms and conditions)
+    - Initial loan amount
+    - Loan term (duration)
+    - Interest rate (may be preset by product)
+  </Step>
+
+  <Step title="Complete Application Details">
+    Fill in the loan application form sections:
+
+    ### Basic Information
+    - Loan amount requested
+    - Loan term (number of installments)
+    - Interest rate
+    - Grace period (if applicable)
+    - Disbursement date
+
+    ### Custom Fields
+    Complete any custom fields configured for loan applications, such as:
+    - Loan purpose
+    - Business information
+    - Collateral details
+    - Other institution-specific requirements
+
+    <Note>
+      Custom fields vary based on your institution's configuration. All required fields must be completed.
+    </Note>
+  </Step>
+
+  <Step title="Add Collateral (Optional)">
+    If required by the loan product:
+    - Navigate to the **Collateral** tab
+    - Click **Add Collateral**
+    - Enter collateral type and details
+    - Specify estimated value
+    - Upload supporting documents
+
+    API endpoint for collateral:
+    ```
+    POST /loan-applications/{id}/collaterals
+    ```
+  </Step>
+
+  <Step title="Add Guarantors (Optional)">
+    For loans requiring guarantors:
+    - Go to the **Guarantors** tab
+    - Click **Add Guarantor**
+    - Select an existing profile or create new
+    - Specify guarantee amount
+    - Add guarantor relationship details
+
+    API endpoint for guarantors:
+    ```
+    POST /loan-applications/{id}/guarantors
+    ```
+  </Step>
+
+  <Step title="Review Loan Schedule">
+    View the calculated repayment schedule:
+    - Navigate to the **Schedule** tab
+    - Review installment amounts and dates
+    - Verify principal, interest, and fee calculations
+
+    API endpoint:
+    ```
+    GET /loan-applications/{id}/schedule
+    ```
+  </Step>
+
+  <Step title="Upload Supporting Documents">
+    Attach required documentation:
+    - Identity documents
+    - Proof of income
+    - Business registration (for business loans)
+    - Collateral documentation
+    - Any other required documents
+
+    Access the **Attachments** tab to upload documents.
+  </Step>
+
+  <Step title="Submit for Review">
+    Once all information is complete:
+    - Review all application details
+    - Click **Submit** to move the application to review status
+
+    API endpoint:
+    ```
+    POST /loan-applications/{id}/submit
+    ```
+  </Step>
+</Steps>
+
+## Loan Application Status Workflow
+
+Loan applications progress through the following statuses:
+
+1. **IN_PROGRESS** - Application is being created/edited
+2. **PENDING** - Submitted and awaiting review
+3. **IN_REVIEW** - Under credit committee review
+4. **APPROVED** - Approved for disbursement
+5. **DISBURSED** - Loan has been disbursed
+
+Change application status using:
+```
+POST /loan-applications/{id}/change-status
+```
+
+## Credit Committee Review
+
+<Steps>
+  <Step title="Access Credit Committee">
+    For applications requiring committee approval:
+    - Navigate to the **Credit Committee** tab
+    - View committee activity and voting history
+  </Step>
+
+  <Step title="Committee Decision">
+    Authorized committee members can:
+    - Review application details
+    - Add comments and recommendations
+    - Vote to approve or reject
+    - Request additional information
+  </Step>
+
+  <Step title="Final Approval">
+    Once the committee approves:
+    - The application status changes to APPROVED
+    - The loan is ready for disbursement
+  </Step>
+</Steps>
+
+## Maker-Checker for Disbursement
+
+<Note>
+  If maker-checker is enabled for disbursement, a second authorized user must approve the disbursement action.
+</Note>
+
+Disbursement workflow:
+1. **Maker** initiates disbursement
+2. Disbursement enters pending approval state
+3. **Checker** reviews and approves
+4. Loan is disbursed upon approval
+
+API endpoint:
+```
+POST /loan-applications/{id}/disburse
+```
+
+## Entry Fees
+
+Loan applications may include entry fees (one-time fees charged at disbursement):
+
+- Origination fees
+- Processing fees
+- Insurance fees
+- Other institution-specific fees
+
+Fees are configured in the loan product and can be adjusted per application if allowed.
+
+## Viewing and Managing Applications
+
+### Application List
+
+View all loan applications:
+```
+GET /loan-applications
+```
+
+Filter by:
+- Status
+- Profile
+- Date range
+- Loan product
+
+### Application Details
+
+Retrieve specific application:
+```
+GET /loan-applications/{id}
+```
+
+### Update Application
+
+Modify application details:
+```
+PUT /loan-applications/{id}
+```
+
+<Tip>
+  Applications can only be edited while in IN_PROGRESS status. Once submitted, changes require special permissions or status rollback.
+</Tip>
+
+## Loan Application Comments
+
+Add notes and comments to applications:
+- Internal notes for staff
+- Committee feedback
+- Approval conditions
+- Client communications
+
+API endpoint:
+```
+GET /loan-applications/{id}/comments
+POST /loan-applications/{id}/comments
+```
+
+## Relationships
+
+Link related profiles to the loan application:
+- Co-borrowers
+- Guarantors
+- References
+- Family members
+
+API endpoint:
+```
+GET /loan-applications/{id}/relationships
+```
+
+## Best Practices
+
+<Tip>
+  **Loan Origination Tips**
+  - Verify all client information before creating application
+  - Complete all sections thoroughly to avoid delays
+  - Upload clear, legible documents
+  - Review loan schedule calculations carefully
+  - Ensure collateral values are properly assessed
+  - Document all credit committee decisions
+</Tip>
+
+## Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| Cannot submit application | Ensure all required fields are completed |
+| Schedule calculation error | Verify loan amount, term, and interest rate |
+| Collateral value insufficient | Add additional collateral or reduce loan amount |
+| Missing documents | Upload all required attachments before submission |
+| Cannot disburse | Check application status and required approvals |
+
+## Next Steps
+
+After loan disbursement:
+
+- [View the loan schedule](/guides/loan-schedule) for repayment details
+- [Process repayments](/guides/repayments) as they come due
+- Monitor loan performance through reports
+- Track loan events and history

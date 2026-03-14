@@ -1,0 +1,307 @@
+---
+title: 'Savings API'
+description: 'REST API endpoints for managing savings accounts'
+---
+
+## Overview
+
+The Savings API allows you to create, manage, and perform operations on savings accounts. All endpoints are located under `/api/savings`.
+
+## Create Savings Account
+
+<ParamField path="POST /api/savings" type="endpoint">
+  Creates a new savings account.
+</ParamField>
+
+### Request Body
+
+<ParamField body="profileId" type="long" required>
+  The ID of the profile associated with this savings account
+</ParamField>
+
+<ParamField body="productId" type="long" required>
+  The ID of the savings product to use
+</ParamField>
+
+<ParamField body="openDate" type="date">
+  The date when the account will be opened
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  The unique identifier of the created savings account
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the savings account (e.g., PENDING, OPEN, CLOSED)
+</ResponseField>
+
+<ResponseField name="balance" type="decimal">
+  Current balance of the savings account
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.opencbs.com/api/savings \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "profileId": 123,
+    "productId": 456
+  }'
+```
+
+```json Response
+{
+  "id": 789,
+  "profileId": 123,
+  "productId": 456,
+  "status": "PENDING",
+  "balance": 0.00,
+  "openDate": null
+}
+```
+</CodeGroup>
+
+## Update Savings Account
+
+<ParamField path="PUT /api/savings/{id}" type="endpoint">
+  Updates an existing savings account.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the savings account to update
+</ParamField>
+
+### Request Body
+
+Same as create endpoint.
+
+## Open Savings Account
+
+<ParamField path="POST /api/savings/{id}/open" type="endpoint">
+  Opens a savings account with an initial deposit.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the savings account to open
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="initialAmount" type="decimal" required>
+  The initial deposit amount
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.opencbs.com/api/savings/789/open?initialAmount=1000.00" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "OPEN",
+  "balance": 1000.00,
+  "openDate": "2026-03-14T10:00:00"
+}
+```
+</CodeGroup>
+
+## Deposit
+
+<ParamField path="POST /api/savings/{id}/deposit" type="endpoint">
+  Makes a deposit to the savings account.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the savings account
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="amount" type="decimal" required>
+  The amount to deposit
+</ParamField>
+
+<ParamField query="date" type="datetime" required>
+  The transaction date and time (format: yyyy-MM-dd'T'HH:mm:ss)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.opencbs.com/api/savings/789/deposit?amount=500.00&date=2026-03-14T14:30:00" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "OPEN",
+  "balance": 1500.00
+}
+```
+</CodeGroup>
+
+## Withdraw
+
+<ParamField path="POST /api/savings/{id}/withdraw" type="endpoint">
+  Withdraws funds from the savings account.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the savings account
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="amount" type="decimal" required>
+  The amount to withdraw
+</ParamField>
+
+<ParamField query="date" type="datetime" required>
+  The transaction date and time (format: yyyy-MM-dd'T'HH:mm:ss)
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.opencbs.com/api/savings/789/withdraw?amount=200.00&date=2026-03-14T16:00:00" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```json Response
+{
+  "id": 789,
+  "status": "OPEN",
+  "balance": 1300.00
+}
+```
+</CodeGroup>
+
+## Close Savings Account
+
+<ParamField path="POST /api/savings/{id}/close" type="endpoint">
+  Closes the savings account.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the savings account to close
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="closeDate" type="date" required>
+  The date to close the account (ISO date format)
+</ParamField>
+
+## Lock/Unlock Account
+
+<ParamField path="POST /api/savings/{id}/lock" type="endpoint">
+  Locks the savings account to prevent transactions.
+</ParamField>
+
+## Get All Savings
+
+<ParamField path="GET /api/savings" type="endpoint">
+  Retrieves all savings accounts with optional search.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="search" type="string">
+  Optional search string to filter results
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (0-based)
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Number of items per page
+</ParamField>
+
+## Get Savings by ID
+
+<ParamField path="GET /api/savings/{id}" type="endpoint">
+  Retrieves a specific savings account by ID.
+</ParamField>
+
+## Get Savings by Profile
+
+<ParamField path="GET /api/savings/by-profile/{profileId}" type="endpoint">
+  Retrieves all savings accounts for a specific profile.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="profileId" type="long" required>
+  The ID of the profile
+</ParamField>
+
+## Get Accounting Entries
+
+<ParamField path="GET /api/savings/{id}/entries" type="endpoint">
+  Retrieves accounting entries for a savings account.
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The ID of the savings account
+</ParamField>
+
+### Response
+
+<ResponseField name="content" type="array">
+  Array of accounting entries
+</ResponseField>
+
+<ResponseField name="content[].id" type="long">
+  Entry ID
+</ResponseField>
+
+<ResponseField name="content[].amount" type="decimal">
+  Transaction amount
+</ResponseField>
+
+<ResponseField name="content[].debitAccountId" type="long">
+  ID of the debit account
+</ResponseField>
+
+<ResponseField name="content[].creditAccountId" type="long">
+  ID of the credit account
+</ResponseField>
+
+<ResponseField name="content[].effectiveAt" type="datetime">
+  When the entry was effective
+</ResponseField>
+
+## Actualize Savings
+
+<ParamField path="POST /api/savings/actualize/{savingId}" type="endpoint">
+  Actualizes the savings account to a specific date (processes interest, fees, etc.).
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="savingId" type="long" required>
+  The ID of the savings account to actualize
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="date" type="date" required>
+  The date to actualize to (ISO date format)
+</ParamField>
