@@ -1,0 +1,189 @@
+{
+  "projectType": "saas",
+  "projectName": "OpenCBS Cloud",
+  "projectDescription": "Open-source Core Banking System optimized for microfinance institutions, cooperative financial institutions, and digital lenders",
+  "theme": "linden",
+  "primaryColor": "#2E7D32",
+  "lightColor": "#66BB6A",
+  "darkColor": "#1B5E20",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "features",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Getting Started",
+            "pages": [
+              "getting-started/installation",
+              "getting-started/configuration",
+              "getting-started/deployment"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/client-management",
+              "features/loan-management",
+              "features/savings-management",
+              "features/accounting",
+              "features/collateral-management"
+            ]
+          },
+          {
+            "group": "User Guides",
+            "pages": [
+              "guides/creating-profiles",
+              "guides/loan-origination",
+              "guides/loan-schedule",
+              "guides/repayments",
+              "guides/reports",
+              "guides/teller-operations"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "admin/user-management",
+              "admin/permissions",
+              "admin/global-settings",
+              "admin/branches",
+              "admin/currencies"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Client Management",
+            "pages": [
+              "api/profiles",
+              "api/companies",
+              "api/groups"
+            ]
+          },
+          {
+            "group": "Loan Operations",
+            "pages": [
+              "api/loans",
+              "api/loan-products",
+              "api/loan-applications",
+              "api/repayments"
+            ]
+          },
+          {
+            "group": "Savings & Deposits",
+            "pages": [
+              "api/savings",
+              "api/term-deposits",
+              "api/bonds",
+              "api/borrowings"
+            ]
+          },
+          {
+            "group": "Accounting",
+            "pages": [
+              "api/accounts",
+              "api/accounting-entries",
+              "api/tills",
+              "api/vaults"
+            ]
+          },
+          {
+            "group": "System",
+            "pages": [
+              "api/users",
+              "api/branches",
+              "api/configuration",
+              "api/reports"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/architecture-overview",
+              "development/backend-structure",
+              "development/frontend-structure",
+              "development/database-schema"
+            ]
+          },
+          {
+            "group": "Developer Guide",
+            "pages": [
+              "development/local-setup",
+              "development/building",
+              "development/testing",
+              "development/contributing"
+            ]
+          },
+          {
+            "group": "Modules",
+            "pages": [
+              "development/modules/core",
+              "development/modules/loans",
+              "development/modules/savings",
+              "development/modules/accounting"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Client Management (Persons, Companies, Groups)",
+    "Loan Management with flexible scheduling",
+    "Savings Accounts & Term Deposits",
+    "Comprehensive Accounting System",
+    "Collateral Management",
+    "Multi-Currency Support",
+    "Branch Management",
+    "Custom Fields & Configuration",
+    "Reports & Analytics",
+    "Teller Operations",
+    "Maker-Checker Workflow",
+    "Role-Based Access Control"
+  ],
+  "publicApiSurface": [
+    "POST /api/login",
+    "GET /api/profiles",
+    "POST /api/profiles",
+    "GET /api/loans",
+    "POST /api/loans",
+    "POST /api/loans/{id}/repayment",
+    "GET /api/savings",
+    "POST /api/savings",
+    "GET /api/accounts",
+    "POST /api/accounting/entries",
+    "GET /api/branches",
+    "GET /api/users",
+    "GET /api/currencies",
+    "GET /api/reports",
+    "GET /api/term-deposits",
+    "GET /api/bonds",
+    "GET /api/borrowings",
+    "GET /api/loan-applications",
+    "POST /api/tills",
+    "GET /api/vaults"
+  ]
+}
